@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>StatLab — Interactive Statistics Simulations</title>
+<meta name="description" content="A collection of interactive statistics simulations and calculators for learning data analysis, sampling distributions, probability, and inference.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#FCFBF8;
+  --paper-2:#F5F3EC;
+  --ink:#211E2E;
+  --ink-soft:#54506A;
+  --ink-faint:#8B879C;
+  --line:#E3DFD3;
+  --grid:#ECE8DC;
+  --white:#FFFFFF;
+
+  /* category hues */
+  --c-data:#4F46E5;
+  --c-sampling:#0D9488;
+  --c-prob:#EA580C;
+  --c-infer:#E11D48;
+  --c-multi:#7C3AED;
+  --c-classic:#65A30D;
+
+  --shadow-sm:0 1px 2px rgba(33,30,46,.06), 0 1px 3px rgba(33,30,46,.05);
+  --shadow-md:0 4px 6px rgba(33,30,46,.05), 0 10px 20px rgba(33,30,46,.08);
+  --shadow-lg:0 12px 28px rgba(33,30,46,.12), 0 2px 6px rgba(33,30,46,.06);
+
+  --r-sm:8px; --r-md:14px; --r-lg:22px;
+  --maxw:1180px;
+
+  --display:"Fraunces", Georgia, serif;
+  --body:"Inter", system-ui, sans-serif;
+  --mono:"JetBrains Mono", ui-monospace, monospace;
+}
+
+*{box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  margin:0;
+  font-family:var(--body);
+  color:var(--ink);
+  background-color:var(--paper);
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size:26px 26px;
+  background-position:-1px -1px;
+  line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+}
+a{color:inherit;}
+button{font-family:inherit;cursor:pointer;}
+canvas{display:block;}
+
+/* ---------- Layout shell ---------- */
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px;}
+
+/* ---------- Top bar ---------- */
+.topbar{
+  position:sticky;top:0;z-index:60;
+  backdrop-filter:saturate(140%) blur(8px);
+  background:rgba(252,251,248,.82);
+  border-bottom:1px solid var(--line);
+}
+.topbar-inner{display:flex;align-items:center;gap:18px;height:62px;}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--display);font-weight:600;font-size:1.18rem;letter-spacing:-.01em;cursor:pointer;background:none;border:none;color:var(--ink);padding:0;}
+.brand .mark{width:26px;height:26px;flex:none;}
+.brand .beta{font-family:var(--mono);font-size:.62rem;font-weight:500;color:var(--ink-faint);border:1px solid var(--line);border-radius:99px;padding:2px 7px;letter-spacing:.04em;}
+.topbar nav{margin-left:auto;display:flex;gap:4px;flex-wrap:wrap;}
+.topbar nav a{
+  font-size:.82rem;font-weight:500;text-decoration:none;color:var(--ink-soft);
+  padding:7px 11px;border-radius:99px;transition:.15s;white-space:nowrap;
+}
+.topbar nav a:hover{color:var(--ink);background:var(--paper-2);}
+
+/* ---------- Hero ---------- */
+.hero{position:relative;overflow:hidden;border-bottom:1px solid var(--line);}
+.hero-inner{display:grid;grid-template-columns:1.05fr 1fr;gap:40px;align-items:center;padding:62px 0 56px;}
+.eyebrow{font-family:var(--mono);font-size:.74rem;letter-spacing:.16em;text-transform:uppercase;color:var(--c-sampling);font-weight:500;margin-bottom:18px;}
+.hero h1{font-family:var(--display);font-weight:600;font-size:clamp(2.4rem,5.2vw,3.9rem);line-height:1.02;letter-spacing:-.02em;margin:0 0 18px;}
+.hero h1 em{font-style:italic;color:var(--c-data);}
+.hero p.lead{font-size:1.08rem;color:var(--ink-soft);max-width:46ch;margin:0 0 26px;}
+.hero-cta{display:flex;gap:12px;flex-wrap:wrap;align-items:center;}
+.btn{
+  display:inline-flex;align-items:center;gap:8px;border:none;border-radius:99px;
+  font-weight:600;font-size:.92rem;padding:12px 22px;text-decoration:none;transition:.18s;
+}
+.btn-primary{background:var(--ink);color:var(--paper);}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:var(--shadow-md);}
+.btn-ghost{background:transparent;color:var(--ink);border:1px solid var(--line);}
+.btn-ghost:hover{background:var(--paper-2);}
+.hero-stat{font-family:var(--mono);font-size:.78rem;color:var(--ink-faint);}
+.hero-stat b{color:var(--ink);font-weight:700;}
+
+.hero-canvas-card{
+  position:relative;background:var(--white);border:1px solid var(--line);border-radius:var(--r-lg);
+  box-shadow:var(--shadow-lg);padding:18px 18px 14px;
+}
+.hero-canvas-card .cap{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;}
+.hero-canvas-card .cap .ttl{font-family:var(--mono);font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint);}
+.hero-canvas-card .cap .live{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:.7rem;color:var(--c-sampling);}
+.hero-canvas-card .cap .live .dot{width:7px;height:7px;border-radius:99px;background:var(--c-sampling);animation:pulse 1.6s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.25;}}
+#heroCanvas{width:100%;height:300px;}
+.hero-readout{display:flex;gap:18px;font-family:var(--mono);font-size:.74rem;color:var(--ink-soft);margin-top:8px;border-top:1px dashed var(--line);padding-top:10px;}
+.hero-readout span b{color:var(--ink);}
+
+/* ---------- Category sections ---------- */
+.section{padding:54px 0 8px;}
+.sec-head{display:flex;align-items:center;gap:14px;margin-bottom:22px;}
+.sec-head .num{font-family:var(--mono);font-size:.78rem;color:var(--ink-faint);font-weight:500;}
+.sec-head h2{font-family:var(--display);font-weight:600;font-size:1.7rem;letter-spacing:-.01em;margin:0;display:flex;align-items:center;gap:12px;}
+.sec-head h2::before{content:"";width:13px;height:13px;border-radius:4px;background:var(--cat,var(--ink));}
+.sec-head .desc{font-size:.9rem;color:var(--ink-soft);margin-left:auto;max-width:34ch;text-align:right;}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(248px,1fr));gap:16px;}
+.card{
+  position:relative;text-align:left;background:var(--white);border:1px solid var(--line);
+  border-radius:var(--r-md);padding:18px 18px 16px;cursor:pointer;transition:.18s;
+  display:flex;flex-direction:column;gap:8px;min-height:128px;width:100%;
+  border-top:3px solid var(--cat,var(--ink));
+}
+.card:hover{transform:translateY(-3px);box-shadow:var(--shadow-md);border-color:var(--cat,var(--line));}
+.card:focus-visible{outline:3px solid var(--cat,var(--ink));outline-offset:2px;}
+.card .ttl{font-weight:600;font-size:1.02rem;letter-spacing:-.01em;line-height:1.2;}
+.card .blurb{font-size:.84rem;color:var(--ink-soft);line-height:1.4;flex:1;}
+.card .tag{font-family:var(--mono);font-size:.64rem;letter-spacing:.05em;text-transform:uppercase;color:var(--cat,var(--ink-faint));font-weight:500;}
+.card .go{position:absolute;right:16px;bottom:14px;color:var(--cat,var(--ink-faint));opacity:0;transform:translateX(-4px);transition:.18s;}
+.card:hover .go{opacity:1;transform:translateX(0);}
+.card .mini{height:34px;margin-top:2px;}
+
+/* ---------- Applet view ---------- */
+#appletView{display:none;padding:30px 0 80px;min-height:70vh;}
+.app-top{display:flex;align-items:center;gap:14px;margin-bottom:8px;flex-wrap:wrap;}
+.back{display:inline-flex;align-items:center;gap:7px;background:var(--white);border:1px solid var(--line);border-radius:99px;padding:8px 15px;font-weight:600;font-size:.85rem;color:var(--ink);transition:.15s;}
+.back:hover{background:var(--paper-2);transform:translateX(-2px);}
+.app-cat{font-family:var(--mono);font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;font-weight:500;padding:5px 11px;border-radius:99px;color:#fff;}
+.app-head h2{font-family:var(--display);font-weight:600;font-size:2rem;letter-spacing:-.015em;margin:6px 0 6px;}
+.app-head p{color:var(--ink-soft);max-width:70ch;margin:0 0 18px;font-size:.96rem;}
+
+.panel{background:var(--white);border:1px solid var(--line);border-radius:var(--r-md);padding:20px;box-shadow:var(--shadow-sm);}
+.app-grid{display:grid;grid-template-columns:300px 1fr;gap:18px;align-items:start;}
+.controls{display:flex;flex-direction:column;gap:16px;}
+.ctrl{display:flex;flex-direction:column;gap:6px;}
+.ctrl label{font-size:.82rem;font-weight:600;display:flex;justify-content:space-between;align-items:baseline;}
+.ctrl label .val{font-family:var(--mono);color:var(--ink-soft);font-weight:500;}
+.ctrl input[type=range]{width:100%;accent-color:var(--accent,var(--c-data));}
+.ctrl input[type=number],.ctrl input[type=text],.ctrl select,.ctrl textarea{
+  font-family:var(--mono);font-size:.88rem;padding:9px 11px;border:1px solid var(--line);
+  border-radius:var(--r-sm);background:var(--paper);color:var(--ink);width:100%;
+}
+.ctrl textarea{min-height:90px;resize:vertical;line-height:1.5;}
+.ctrl .hint{font-size:.74rem;color:var(--ink-faint);}
+.seg{display:flex;border:1px solid var(--line);border-radius:99px;overflow:hidden;background:var(--paper);}
+.seg button{flex:1;border:none;background:transparent;padding:8px;font-size:.8rem;font-weight:600;color:var(--ink-soft);transition:.15s;}
+.seg button.on{background:var(--accent,var(--c-data));color:#fff;}
+.btnrow{display:flex;gap:8px;flex-wrap:wrap;}
+.abtn{border:1px solid var(--line);background:var(--paper);border-radius:var(--r-sm);padding:9px 13px;font-weight:600;font-size:.82rem;color:var(--ink);transition:.15s;flex:1;white-space:nowrap;}
+.abtn:hover{border-color:var(--accent,var(--ink));}
+.abtn.primary{background:var(--accent,var(--c-data));color:#fff;border-color:transparent;}
+.abtn.primary:hover{filter:brightness(1.07);}
+.abtn:disabled{opacity:.45;cursor:not-allowed;}
+
+.viz{display:flex;flex-direction:column;gap:14px;}
+.plot-card{background:var(--paper);border:1px solid var(--line);border-radius:var(--r-sm);padding:12px;}
+.plot-card .plot-title{font-family:var(--mono);font-size:.72rem;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:8px;}
+.plotwrap{width:100%;}
+.plotwrap canvas{width:100%;height:auto;}
+
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px;}
+.stat{background:var(--paper);border:1px solid var(--line);border-radius:var(--r-sm);padding:11px 13px;}
+.stat .k{font-family:var(--mono);font-size:.66rem;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-faint);}
+.stat .v{font-family:var(--mono);font-size:1.18rem;font-weight:700;color:var(--ink);margin-top:2px;}
+.stat .v.accent{color:var(--accent,var(--c-data));}
+
+.note{font-size:.82rem;color:var(--ink-soft);background:var(--paper-2);border-left:3px solid var(--accent,var(--c-data));border-radius:0 var(--r-sm) var(--r-sm) 0;padding:11px 14px;}
+
+/* footer */
+.foot{border-top:1px solid var(--line);margin-top:40px;padding:34px 0;color:var(--ink-faint);font-size:.82rem;}
+.foot a{color:var(--ink-soft);text-decoration:none;border-bottom:1px solid var(--line);}
+.foot .row{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;align-items:center;}
+.foot .brand-sm{font-family:var(--display);font-weight:600;color:var(--ink);font-size:1rem;}
+
+/* responsive */
+@media(max-width:880px){
+  .hero-inner{grid-template-columns:1fr;gap:30px;padding:40px 0;}
+  .hero-canvas-card{order:-1;}
+  .app-grid{grid-template-columns:1fr;}
+  .sec-head .desc{display:none;}
+  .topbar nav{display:none;}
+}
+@media(prefers-reduced-motion:reduce){
+  *{animation-duration:.001ms!important;transition-duration:.001ms!important;}
+}
+.visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap topbar-inner">
+    <button class="brand" onclick="goHome()" aria-label="StatLab home">
+      <svg class="mark" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+        <rect x="3" y="18" width="5" height="11" rx="1.5" fill="#65A30D"/>
+        <rect x="10" y="11" width="5" height="18" rx="1.5" fill="#0D9488"/>
+        <rect x="17" y="6" width="5" height="23" rx="1.5" fill="#4F46E5"/>
+        <rect x="24" y="13" width="5" height="16" rx="1.5" fill="#EA580C"/>
+        <circle cx="5.5" cy="13" r="2.4" fill="#211E2E"/>
+        <circle cx="12.5" cy="7" r="2.4" fill="#211E2E"/>
+        <circle cx="19.5" cy="3" r="2.4" fill="#211E2E"/>
+        <circle cx="26.5" cy="9" r="2.4" fill="#211E2E"/>
+      </svg>
+      StatLab <span class="beta">v1</span>
+    </button>
+    <nav id="topnav"></nav>
+  </div>
+</header>
+
+<main id="home">
+  <section class="hero">
+    <div class="wrap hero-inner">
+      <div>
+        <div class="eyebrow">Interactive Statistics · Simulation-Based Inference</div>
+        <h1>See the <em>randomness</em>.<br>Not just the formula.</h1>
+        <p class="lead">A hands-on collection of simulations and calculators for learning statistics — sample, shuffle, bootstrap, and watch distributions take shape. Built for the classroom.</p>
+        <div class="hero-cta">
+          <a class="btn btn-primary" href="#data">Explore the tools →</a>
+          <span class="hero-stat"><b id="appletCount">0</b> live applets · <b>6</b> topics</span>
+        </div>
+      </div>
+      <div class="hero-canvas-card">
+        <div class="cap">
+          <span class="ttl">Sampling distribution, forming live</span>
+          <span class="live"><span class="dot"></span>sampling</span>
+        </div>
+        <canvas id="heroCanvas" width="560" height="300" aria-label="An animation of sample means accumulating into a bell-shaped distribution"></canvas>
+        <div class="hero-readout">
+          <span>samples <b id="heroN">0</b></span>
+          <span>mean <b id="heroMean">—</b></span>
+          <span>SD <b id="heroSD">—</b></span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="wrap" id="catalog"></div>
+
+  <footer class="foot">
+    <div class="wrap row">
+      <div>
+        <div class="brand-sm">StatLab</div>
+        <div style="margin-top:6px;max-width:52ch;">Free to use, remix, and share. Built with plain HTML, CSS &amp; JavaScript — no build step, no dependencies. Drop <code style="font-family:var(--mono)">index.html</code> into any GitHub Pages repo.</div>
+      </div>
+      <div style="text-align:right;font-family:var(--mono);font-size:.76rem;line-height:1.9;">
+        Inspired by the Rossman/Chance applet collection.<br>
+        Replace this footer with your name &amp; course.
+      </div>
+    </div>
+  </footer>
+</main>
+
+<section id="appletView" aria-live="polite"></section>
+
+<script>
+/* =====================================================================
+   StatLab — single-file interactive statistics collection
+   Sections:  (1) math utils  (2) plot helpers  (3) applets
+              (4) catalog/registry  (5) router + hero animation
+   ===================================================================== */
+
+/* ----------------------------- (1) MATH ----------------------------- */
+const M = {
+  rand: Math.random,
+  randn(){ // standard normal via Box-Muller
+    let u=0,v=0; while(u===0)u=Math.random(); while(v===0)v=Math.random();
+    return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);
+  },
+  normal(mean=0,sd=1){ return mean + sd*M.randn(); },
+  sum(a){ return a.reduce((s,x)=>s+x,0); },
+  mean(a){ return a.length? M.sum(a)/a.length : 0; },
+  variance(a){ if(a.length<2)return 0; const m=M.mean(a); return M.sum(a.map(x=>(x-m)**2))/(a.length-1); },
+  sd(a){ return Math.sqrt(M.variance(a)); },
+  median(a){ if(!a.length)return 0; const s=[...a].sort((x,y)=>x-y),n=s.length,h=Math.floor(n/2); return n%2? s[h] : (s[h-1]+s[h])/2; },
+  quantile(a,q){ if(!a.length)return 0; const s=[...a].sort((x,y)=>x-y); const pos=(s.length-1)*q,b=Math.floor(pos),r=pos-b; return s[b+1]!==undefined? s[b]+r*(s[b+1]-s[b]) : s[b]; },
+  min(a){ return Math.min(...a); }, max(a){ return Math.max(...a); },
+  corr(x,y){ const n=x.length; if(n<2)return 0; const mx=M.mean(x),my=M.mean(y); let sxy=0,sxx=0,syy=0;
+    for(let i=0;i<n;i++){ const dx=x[i]-mx,dy=y[i]-my; sxy+=dx*dy; sxx+=dx*dx; syy+=dy*dy; }
+    return (sxx===0||syy===0)?0:sxy/Math.sqrt(sxx*syy); },
+  linreg(x,y){ const n=x.length,mx=M.mean(x),my=M.mean(y); let sxy=0,sxx=0;
+    for(let i=0;i<n;i++){ sxy+=(x[i]-mx)*(y[i]-my); sxx+=(x[i]-mx)**2; }
+    const b=sxx===0?0:sxy/sxx, a=my-b*mx; return {a,b,r:M.corr(x,y)}; },
+  // error function (Abramowitz & Stegun 7.1.26)
+  erf(x){ const s=x<0?-1:1; x=Math.abs(x);
+    const t=1/(1+0.3275911*x);
+    const y=1-(((((1.061405429*t-1.453152027)*t)+1.421413741)*t-0.284496736)*t+0.254829592)*t*Math.exp(-x*x);
+    return s*y; },
+  normCdf(z,mean=0,sd=1){ return 0.5*(1+M.erf((z-mean)/(sd*Math.SQRT2))); },
+  normPdf(x,mean=0,sd=1){ return Math.exp(-((x-mean)**2)/(2*sd*sd))/(sd*Math.sqrt(2*Math.PI)); },
+  // inverse normal (Acklam)
+  normInv(p){ const a=[-3.969683028665376e+01,2.209460984245205e+02,-2.759285104469687e+02,1.383577518672690e+02,-3.066479806614716e+01,2.506628277459239e+00];
+    const b=[-5.447609879822406e+01,1.615858368580409e+02,-1.556989798598866e+02,6.680131188771972e+01,-1.328068155288572e+01];
+    const c=[-7.784894002430293e-03,-3.223964580411365e-01,-2.400758277161838e+00,-2.549732539343734e+00,4.374664141464968e+00,2.938163982698783e+00];
+    const d=[7.784695709041462e-03,3.224671290700398e-01,2.445134137142996e+00,3.754408661907416e+00];
+    const pl=0.02425; let q,r;
+    if(p<pl){ q=Math.sqrt(-2*Math.log(p)); return (((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5])/((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1);}
+    if(p<=1-pl){ q=p-0.5; r=q*q; return (((((a[0]*r+a[1])*r+a[2])*r+a[3])*r+a[4])*r+a[5])*q/(((((b[0]*r+b[1])*r+b[2])*r+b[3])*r+b[4])*r+1);}
+    q=Math.sqrt(-2*Math.log(1-p)); return -(((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5])/((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1);
+  },
+  // log gamma (Lanczos)
+  gammaln(x){ const g=[76.18009172947146,-86.50532032941677,24.01409824083091,-1.231739572450155,0.1208650973866179e-2,-0.5395239384953e-5];
+    let xx=x,y=x,tmp=x+5.5; tmp-=(xx+0.5)*Math.log(tmp); let ser=1.000000000190015;
+    for(let j=0;j<6;j++){ y++; ser+=g[j]/y; } return -tmp+Math.log(2.5066282746310005*ser/xx); },
+  betacf(a,b,x){ const MAXIT=200,EPS=3e-12,FPMIN=1e-30; let qab=a+b,qap=a+1,qam=a-1,c=1,d=1-qab*x/qap;
+    if(Math.abs(d)<FPMIN)d=FPMIN; d=1/d; let h=d;
+    for(let m=1;m<=MAXIT;m++){ const m2=2*m; let aa=m*(b-m)*x/((qam+m2)*(a+m2)); d=1+aa*d; if(Math.abs(d)<FPMIN)d=FPMIN;
+      c=1+aa/c; if(Math.abs(c)<FPMIN)c=FPMIN; d=1/d; h*=d*c;
+      aa=-(a+m)*(qab+m)*x/((a+m2)*(qap+m2)); d=1+aa*d; if(Math.abs(d)<FPMIN)d=FPMIN; c=1+aa/c; if(Math.abs(c)<FPMIN)c=FPMIN; d=1/d;
+      const del=d*c; h*=del; if(Math.abs(del-1)<EPS)break; } return h; },
+  betai(a,b,x){ if(x<=0)return 0; if(x>=1)return 1;
+    const bt=Math.exp(M.gammaln(a+b)-M.gammaln(a)-M.gammaln(b)+a*Math.log(x)+b*Math.log(1-x));
+    return x<(a+1)/(a+b+2)? bt*M.betacf(a,b,x)/a : 1-bt*M.betacf(b,a,1-x)/b; },
+  // Student t CDF
+  tCdf(t,df){ const x=df/(df+t*t); const ib=0.5*M.betai(df/2,0.5,x); return t>0? 1-ib : ib; },
+  tPdf(t,df){ return Math.exp(M.gammaln((df+1)/2)-M.gammaln(df/2))/Math.sqrt(df*Math.PI)*Math.pow(1+t*t/df,-(df+1)/2); },
+  // inverse t via bisection
+  tInv(p,df){ let lo=-100,hi=100; for(let i=0;i<100;i++){ const mid=(lo+hi)/2; if(M.tCdf(mid,df)<p)lo=mid; else hi=mid; } return (lo+hi)/2; },
+  binom(n,p){ let k=0; for(let i=0;i<n;i++) if(Math.random()<p)k++; return k; },
+  shuffle(a){ const x=[...a]; for(let i=x.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [x[i],x[j]]=[x[j],x[i]]; } return x; },
+  sampleWithRep(a,n){ const out=[]; for(let i=0;i<n;i++) out.push(a[Math.floor(Math.random()*a.length)]); return out; },
+  round(x,d=2){ const f=10**d; return Math.round(x*f)/f; },
+  clamp(x,lo,hi){ return Math.max(lo,Math.min(hi,x)); }
+};
+
+/* parse a free-text list of numbers */
+function parseNums(str){
+  return (str||"").split(/[\s,;]+/).map(s=>s.trim()).filter(s=>s!=="").map(Number).filter(x=>!isNaN(x));
+}
+
+/* --------------------------- (2) PLOTTING --------------------------- */
+const COL = {
+  data:'#4F46E5', sampling:'#0D9488', prob:'#EA580C', infer:'#E11D48', multi:'#7C3AED', classic:'#65A30D',
+  ink:'#211E2E', soft:'#54506A', faint:'#8B879C', line:'#E3DFD3', grid:'#ECE8DC', paper:'#FCFBF8',
+  coral:'#F43F5E', amber:'#F59E0B', teal:'#0D9488', green:'#16A34A'
+};
+function hexA(hex,a){ const n=parseInt(hex.slice(1),16); return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`; }
+
+class Chart{
+  constructor(canvas,{m={t:14,r:14,b:34,l:42},cssH=null}={}){
+    this.c=canvas; this.ctx=canvas.getContext('2d'); this.m=m; this.cssH=cssH; this.resize();
+  }
+  resize(){
+    const cssW=this.c.clientWidth||this.c.parentElement.clientWidth||520;
+    const cssH=this.cssH|| Math.round(cssW*0.6);
+    const dpr=window.devicePixelRatio||1;
+    this.c.style.height=cssH+'px';
+    this.c.width=cssW*dpr; this.c.height=cssH*dpr;
+    this.ctx.setTransform(dpr,0,0,dpr,0,0);
+    this.W=cssW; this.H=cssH;
+    this.px0=this.m.l; this.px1=cssW-this.m.r; this.py0=cssH-this.m.b; this.py1=this.m.t;
+  }
+  setX(min,max){ this.xmin=min; this.xmax=max===min?min+1:max; return this; }
+  setY(min,max){ this.ymin=min; this.ymax=max===min?min+1:max; return this; }
+  X(v){ return this.px0+(v-this.xmin)/(this.xmax-this.xmin)*(this.px1-this.px0); }
+  Y(v){ return this.py0+(v-this.ymin)/(this.ymax-this.ymin)*(this.py1-this.py0); }
+  clear(){ this.ctx.clearRect(0,0,this.W,this.H); }
+  grid(){ const ctx=this.ctx; ctx.strokeStyle=COL.grid; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(this.px0,this.py1); ctx.lineTo(this.px0,this.py0); ctx.lineTo(this.px1,this.py0); ctx.stroke(); }
+  axisX(ticks,fmt=(v)=>(''+M.round(v,2))){ const ctx=this.ctx; ctx.fillStyle=COL.soft; ctx.font='11px "JetBrains Mono",monospace'; ctx.textAlign='center'; ctx.textBaseline='top';
+    ticks.forEach(t=>{ const x=this.X(t); ctx.strokeStyle=COL.line; ctx.beginPath(); ctx.moveTo(x,this.py0); ctx.lineTo(x,this.py0+4); ctx.stroke(); ctx.fillText(fmt(t),x,this.py0+7); }); }
+  axisY(ticks,fmt=(v)=>(''+M.round(v,2))){ const ctx=this.ctx; ctx.fillStyle=COL.soft; ctx.font='11px "JetBrains Mono",monospace'; ctx.textAlign='right'; ctx.textBaseline='middle';
+    ticks.forEach(t=>{ const y=this.Y(t); ctx.strokeStyle=COL.grid; ctx.beginPath(); ctx.moveTo(this.px0-4,y); ctx.lineTo(this.px1,y); ctx.stroke(); ctx.fillStyle=COL.soft; ctx.fillText(fmt(t),this.px0-7,y); }); }
+  xlabel(t){ const ctx=this.ctx; ctx.fillStyle=COL.faint; ctx.font='10px "JetBrains Mono",monospace'; ctx.textAlign='center'; ctx.textBaseline='bottom'; ctx.fillText(t,(this.px0+this.px1)/2,this.H-1); }
+  bars(bins,color){ const ctx=this.ctx; const bw=(this.X(this.xmax)-this.X(this.xmin))/bins.length;
+    bins.forEach((b,i)=>{ if(b.count<=0)return; const x=this.X(b.lo), w=this.X(b.hi)-this.X(b.lo)-1, y=this.Y(b.count);
+      ctx.fillStyle=color; ctx.fillRect(x+0.5,y,Math.max(1,w),this.py0-y); ctx.strokeStyle=COL.paper; ctx.lineWidth=1; ctx.strokeRect(x+0.5,y,Math.max(1,w),this.py0-y); }); }
+  dotStack(values,color,{r=3,binW=null}={}){ // dotplot
+    const ctx=this.ctx; const span=this.xmax-this.xmin; const bw=binW|| span/40;
+    const counts={}; const sorted=[...values].sort((a,b)=>a-b);
+    sorted.forEach(v=>{ const k=Math.round((v-this.xmin)/bw); counts[k]=(counts[k]||0); const y=counts[k]; counts[k]++;
+      const cx=this.X(this.xmin+(k+0.5)*bw), cy=this.py0-r-y*(r*2+1);
+      ctx.fillStyle=color; ctx.beginPath(); ctx.arc(cx,cy,r,0,7); ctx.fill(); }); }
+  points(xs,ys,color,r=4){ const ctx=this.ctx; for(let i=0;i<xs.length;i++){ ctx.fillStyle=color; ctx.beginPath(); ctx.arc(this.X(xs[i]),this.Y(ys[i]),r,0,7); ctx.fill(); ctx.strokeStyle=COL.paper; ctx.lineWidth=1; ctx.stroke(); } }
+  line(x0,y0,x1,y1,color,w=2,dash=[]){ const ctx=this.ctx; ctx.save(); ctx.setLineDash(dash); ctx.strokeStyle=color; ctx.lineWidth=w; ctx.beginPath(); ctx.moveTo(this.X(x0),this.Y(y0)); ctx.lineTo(this.X(x1),this.Y(y1)); ctx.stroke(); ctx.restore(); }
+  vline(x,color,w=2,dash=[]){ const ctx=this.ctx; ctx.save(); ctx.setLineDash(dash); ctx.strokeStyle=color; ctx.lineWidth=w; ctx.beginPath(); ctx.moveTo(this.X(x),this.py1); ctx.lineTo(this.X(x),this.py0); ctx.stroke(); ctx.restore(); }
+  curve(fn,color,w=2,n=240){ const ctx=this.ctx; ctx.strokeStyle=color; ctx.lineWidth=w; ctx.beginPath();
+    for(let i=0;i<=n;i++){ const x=this.xmin+(this.xmax-this.xmin)*i/n, y=fn(x); const px=this.X(x),py=this.Y(y); i?ctx.lineTo(px,py):ctx.moveTo(px,py);} ctx.stroke(); }
+  shade(fn,a,b,color,n=120){ const ctx=this.ctx; ctx.fillStyle=color; ctx.beginPath(); ctx.moveTo(this.X(a),this.Y(0));
+    for(let i=0;i<=n;i++){ const x=a+(b-a)*i/n; ctx.lineTo(this.X(x),this.Y(fn(x))); } ctx.lineTo(this.X(b),this.Y(0)); ctx.closePath(); ctx.fill(); }
+  marker(x,label,color){ const ctx=this.ctx; this.vline(x,color,2); ctx.fillStyle=color; ctx.font='bold 10px "JetBrains Mono",monospace'; ctx.textAlign='center'; ctx.textBaseline='bottom'; ctx.fillText(label,this.X(x),this.py1+11); }
+}
+// histogram binning
+function histogram(values,nbins,lo,hi){ lo=lo??M.min(values); hi=hi??M.max(values); if(hi===lo)hi=lo+1;
+  const w=(hi-lo)/nbins, bins=[]; for(let i=0;i<nbins;i++)bins.push({lo:lo+i*w,hi:lo+(i+1)*w,count:0});
+  values.forEach(v=>{ let k=Math.floor((v-lo)/w); if(k>=nbins)k=nbins-1; if(k<0)k=0; bins[k].count++; }); return bins;
+}
+function niceTicks(min,max,n=6){ const span=max-min||1; const step0=span/n; const mag=Math.pow(10,Math.floor(Math.log10(step0)));
+  const norm=step0/mag; let step; if(norm<1.5)step=1; else if(norm<3)step=2; else if(norm<7)step=5; else step=10; step*=mag;
+  const t=[]; let v=Math.ceil(min/step)*step; while(v<=max+1e-9){ t.push(M.round(v,6)); v+=step; } return t; }
+/* ----------------------- (3) UI + REGISTRY -------------------------- */
+const CATS = {
+  data:    {name:'Data Analysis',          color:COL.data,     n:'01', desc:'Describe and explore distributions and relationships.'},
+  sampling:{name:'Sampling Distributions',  color:COL.sampling, n:'02', desc:'Repeat the random process and watch the pattern emerge.'},
+  prob:    {name:'Probability',             color:COL.prob,     n:'03', desc:'Chance, counting, and the long run.'},
+  infer:   {name:'Statistical Inference',   color:COL.infer,    n:'04', desc:'Randomization tests, bootstraps, and what the data support.'},
+  multi:   {name:'Multiple Variables',      color:COL.multi,    n:'05', desc:'Compare groups and model several variables at once.'},
+  classic: {name:'Classics & Games',        color:COL.classic,  n:'06', desc:'Famous puzzles that build statistical intuition.'},
+};
+const APPLETS = [];
+const add = (a)=>APPLETS.push(a);
+
+const UI = {
+  appGrid(controls,viz){ const g=document.createElement('div'); g.className='app-grid';
+    const c=document.createElement('div'); c.className='panel'; const cc=document.createElement('div'); cc.className='controls'; controls.forEach(x=>cc.appendChild(x)); c.appendChild(cc);
+    const v=document.createElement('div'); v.className='viz'; viz.forEach(x=>v.appendChild(x)); g.append(c,v); return g; },
+  slider({label,min,max,step=1,value,fmt=(v)=>v,oninput}){ const w=document.createElement('div'); w.className='ctrl';
+    w.innerHTML=`<label>${label}<span class="val"></span></label><input type="range" min="${min}" max="${max}" step="${step}" value="${value}">`;
+    const inp=w.querySelector('input'), val=w.querySelector('.val'); const upd=()=>val.textContent=fmt(+inp.value); upd();
+    inp.addEventListener('input',()=>{ upd(); oninput(+inp.value); }); w.get=()=>+inp.value; w.set=(v)=>{inp.value=v;upd();}; return w; },
+  number({label,value,step='any',min,max,hint,onchange}){ const w=document.createElement('div'); w.className='ctrl';
+    w.innerHTML=`<label>${label}</label><input type="number" value="${value}" step="${step}" ${min!=null?`min="${min}"`:''} ${max!=null?`max="${max}"`:''}>${hint?`<span class="hint">${hint}</span>`:''}`;
+    const inp=w.querySelector('input'); inp.addEventListener('input',()=>onchange(+inp.value)); w.get=()=>+inp.value; w.set=(v)=>inp.value=v; return w; },
+  textarea({label,value,hint,onchange}){ const w=document.createElement('div'); w.className='ctrl';
+    w.innerHTML=`<label>${label}</label><textarea>${value}</textarea>${hint?`<span class="hint">${hint}</span>`:''}`;
+    const t=w.querySelector('textarea'); t.addEventListener('input',()=>onchange(t.value)); w.get=()=>t.value; w.set=(v)=>t.value=v; return w; },
+  seg({label,options,value,onchange}){ const w=document.createElement('div'); w.className='ctrl';
+    w.innerHTML=`${label?`<label>${label}</label>`:''}<div class="seg"></div>`; const seg=w.querySelector('.seg');
+    options.forEach(o=>{ const b=document.createElement('button'); b.textContent=o.label; b.className=o.value===value?'on':''; b.onclick=()=>{ seg.querySelectorAll('button').forEach(x=>x.classList.remove('on')); b.classList.add('on'); w._v=o.value; onchange(o.value); }; seg.appendChild(b); }); w._v=value; w.get=()=>w._v; return w; },
+  select({label,options,value,onchange}){ const w=document.createElement('div'); w.className='ctrl';
+    w.innerHTML=`<label>${label}</label><select>${options.map(o=>`<option value="${o.value}" ${o.value===value?'selected':''}>${o.label}</option>`).join('')}</select>`;
+    const s=w.querySelector('select'); s.addEventListener('change',()=>onchange(s.value)); w.get=()=>s.value; return w; },
+  buttons(list){ const w=document.createElement('div'); w.className='ctrl'; const row=document.createElement('div'); row.className='btnrow'; w.appendChild(row);
+    list.forEach(b=>{ const btn=document.createElement('button'); btn.className='abtn'+(b.primary?' primary':''); btn.textContent=b.label; btn.onclick=b.onclick; b.ref&&b.ref(btn); row.appendChild(btn); }); return w; },
+  statsBox(){ const w=document.createElement('div'); w.className='stats'; w.set=(arr)=>{ w.innerHTML=arr.map(s=>`<div class="stat"><div class="k">${s.k}</div><div class="v ${s.accent?'accent':''}">${s.v}</div></div>`).join(''); }; return w; },
+  plotCard(title,h=null){ const w=document.createElement('div'); w.className='plot-card';
+    w.innerHTML=`<div class="plot-title">${title}</div><div class="plotwrap"><canvas></canvas></div>`;
+    const cv=w.querySelector('canvas'); w.canvas=cv; w.chart=()=>new Chart(cv,h?{cssH:h}:{}); w.setTitle=(t)=>w.querySelector('.plot-title').textContent=t; return w; },
+  note(html){ const w=document.createElement('div'); w.className='note'; w.innerHTML=html; return w; }
+};
+/* ===== Data Analysis : Descriptive Statistics ===== */
+add({ id:'descriptive', cat:'data', tag:'explore', title:'Descriptive Statistics',
+  blurb:'Type or generate data and instantly see the histogram, boxplot, and summary numbers.',
+  build(host){
+    let data=[12,15,15,18,21,22,22,23,25,28,29,31,34,35,41];
+    const ta=UI.textarea({label:'Data (any separators)',value:data.join(', '),hint:'numbers separated by spaces, commas, or new lines',onchange:v=>{ data=parseNums(v); render(); }});
+    const bins=UI.slider({label:'Histogram bins',min:3,max:30,value:8,fmt:v=>v,oninput:render});
+    const gen=UI.buttons([
+      {label:'Normal n=40',onclick:()=>{ data=Array.from({length:40},()=>M.round(M.normal(50,10),1)); ta.set(data.join(', ')); render(); }},
+      {label:'Skewed n=40',onclick:()=>{ data=Array.from({length:40},()=>M.round(Math.exp(M.normal(3,0.5)),1)); ta.set(data.join(', ')); render(); }},
+    ]);
+    const stats=UI.statsBox();
+    const hist=UI.plotCard('Histogram',230);
+    const box=UI.plotCard('Boxplot',120);
+    host.appendChild(UI.appGrid([ta,bins,gen,UI.note('Watch how the <b>mean</b> chases outliers while the <b>median</b> resists them. Drag the bin slider to see how shape impressions can change.')],[stats,hist,box]));
+    function render(){
+      if(data.length<1){ stats.set([{k:'n',v:0}]); return; }
+      const mean=M.mean(data),med=M.median(data),sd=M.sd(data),q1=M.quantile(data,.25),q3=M.quantile(data,.75);
+      stats.set([{k:'n',v:data.length},{k:'mean',v:M.round(mean,2),accent:1},{k:'median',v:M.round(med,2),accent:1},
+        {k:'std dev',v:M.round(sd,2)},{k:'min',v:M.round(M.min(data),2)},{k:'Q1',v:M.round(q1,2)},{k:'Q3',v:M.round(q3,2)},{k:'max',v:M.round(M.max(data),2)}]);
+      const lo=M.min(data),hi=M.max(data),pad=(hi-lo)*0.06||1;
+      const ch=hist.chart(); const hb=histogram(data,bins.get(),lo,hi); const maxc=Math.max(...hb.map(b=>b.count));
+      ch.setX(lo-pad,hi+pad).setY(0,maxc*1.12); ch.clear(); ch.axisY(niceTicks(0,maxc*1.12,4)); ch.bars(hb,hexA(COL.data,.82)); ch.grid(); ch.axisX(niceTicks(lo,hi,6)); ch.marker(mean,'mean',COL.coral); ch.vline(med,COL.amber,2,[4,3]);
+      const cb=box.chart(); cb.setX(lo-pad,hi+pad).setY(0,1); cb.clear();
+      const iqr=q3-q1, wlo=Math.max(lo,q1-1.5*iqr), whi=Math.min(hi,q3+1.5*iqr);
+      const ctx=cb.ctx, ymid=cb.Y(0.5), bh=24;
+      cb.line(wlo,0.5,q1,0.5,COL.soft,2); cb.line(q3,0.5,whi,0.5,COL.soft,2);
+      ctx.fillStyle=hexA(COL.data,.18); ctx.fillRect(cb.X(q1),ymid-bh,cb.X(q3)-cb.X(q1),bh*2); ctx.strokeStyle=COL.data; ctx.lineWidth=2; ctx.strokeRect(cb.X(q1),ymid-bh,cb.X(q3)-cb.X(q1),bh*2);
+      [q1,q3,wlo,whi].forEach(v=>{ ctx.strokeStyle=COL.soft; ctx.beginPath(); ctx.moveTo(cb.X(v),ymid-bh);ctx.lineTo(cb.X(v),ymid+bh);ctx.stroke(); });
+      ctx.strokeStyle=COL.coral; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(cb.X(med),ymid-bh);ctx.lineTo(cb.X(med),ymid+bh);ctx.stroke();
+      data.forEach(v=>{ if(v<wlo||v>whi){ ctx.fillStyle=COL.coral; ctx.beginPath(); ctx.arc(cb.X(v),ymid,3,0,7); ctx.fill(); } });
+      cb.axisX(niceTicks(lo,hi,6));
+    }
+    render();
+  }
+});
+
+/* ===== Data Analysis : Guess the Correlation ===== */
+add({ id:'guess-corr', cat:'data', tag:'game', title:'Guess the Correlation',
+  blurb:'Train your eye. See a scatterplot, guess r from −1 to 1, and score yourself over many rounds.',
+  build(host){
+    let truth=0,xs=[],ys=[],revealed=false,round=0,totalErr=0;
+    const plot=UI.plotCard('What is r?',300);
+    const guess=UI.slider({label:'Your guess for r',min:-100,max:100,value:0,fmt:v=>(v/100).toFixed(2),oninput:()=>{}});
+    const stats=UI.statsBox();
+    const btns=UI.buttons([
+      {label:'Reveal answer',primary:true,onclick:reveal},
+      {label:'New plot',onclick:next}
+    ]);
+    host.appendChild(UI.appGrid([guess,btns,stats,UI.note('Correlation measures <b>linear</b> association only. A curved cloud can have r near 0 even when the variables are tightly related.')],[plot]));
+    function newData(){ truth=M.round(Math.random()*1.9-0.95,2); const n=80; xs=[];ys=[];
+      for(let i=0;i<n;i++){ const z1=M.randn(),z2=M.randn(); xs.push(z1); ys.push(truth*z1+Math.sqrt(1-truth*truth)*z2); }
+      revealed=false; draw(); }
+    function draw(){ const ch=plot.chart(); const xl=M.min(xs),xh=M.max(xs),yl=M.min(ys),yh=M.max(ys);
+      ch.setX(xl-0.3,xh+0.3).setY(yl-0.3,yh+0.3); ch.clear(); ch.grid(); ch.points(xs,ys,hexA(COL.data,.7),4);
+      if(revealed){ const {a,b}=M.linreg(xs,ys); ch.line(xl-0.3,a+b*(xl-0.3),xh+0.3,a+b*(xh+0.3),COL.coral,2.5);
+        plot.setTitle(`Actual r = ${truth.toFixed(2)}  ·  your guess ${(guess.get()/100).toFixed(2)}`);
+      } else plot.setTitle('What is r?'); }
+    function reveal(){ if(revealed)return; revealed=true; round++; const g=guess.get()/100; const err=Math.abs(g-truth); totalErr+=err; draw();
+      stats.set([{k:'rounds',v:round},{k:'this error',v:err.toFixed(2),accent:1},{k:'avg error',v:(totalErr/round).toFixed(3)},{k:'grade',v: err<.1?'A':err<.2?'B':err<.3?'C':'practice'}]); }
+    function next(){ guess.set(0); newData(); if(round)stats.set([{k:'rounds',v:round},{k:'avg error',v:(totalErr/round).toFixed(3),accent:1}]); }
+    newData();
+  }
+});
+
+/* ===== Data Analysis : Least Squares Regression ===== */
+add({ id:'least-squares', cat:'data', tag:'interactive', title:'Least Squares Regression',
+  blurb:'Click to drop points. The line, equation, r, and r² update live. Toggle residual squares to see what "least squares" means.',
+  build(host){
+    const example=[[1,2.2],[2,2.0],[3,3.6],[4,3.9],[5,5.4],[6,5.1],[7,6.8],[8,7.2]];
+    let pts=example.map(p=>[...p]); let showRes=false;
+    const plot=UI.plotCard('Click on the plot to add a point · click a point to remove it',320);
+    const stats=UI.statsBox();
+    const res=UI.seg({label:'Residual squares',options:[{label:'Hide',value:0},{label:'Show',value:1}],value:0,onchange:v=>{showRes=!!+v;render();}});
+    const clear=UI.buttons([{label:'Clear points',onclick:()=>{pts=[];render();}},{label:'Reset example',onclick:()=>{pts=example.map(p=>[...p]);render();}}]);
+    host.appendChild(UI.appGrid([res,clear,stats,UI.note('The fitted line minimizes the <b>sum of squared residuals</b> — the total area of those squares. Add a point far from the trend to see leverage in action.')],[plot]));
+    const cv=plot.canvas; const XMIN=0,XMAX=10,YMIN=0,YMAX=10;
+    cv.style.cursor='crosshair';
+    cv.addEventListener('click',e=>{ const ch=lastChart; if(!ch)return; const rect=cv.getBoundingClientRect();
+      const px=(e.clientX-rect.left), py=(e.clientY-rect.top);
+      const dx=(px-ch.px0)/(ch.px1-ch.px0)*(XMAX-XMIN)+XMIN; const dy=(py-ch.py0)/(ch.py1-ch.py0)*(YMAX-YMIN)+YMIN;
+      const hit=pts.findIndex(p=>Math.hypot(ch.X(p[0])-px,ch.Y(p[1])-py)<9);
+      if(hit>=0)pts.splice(hit,1); else pts.push([M.clamp(dx,XMIN,XMAX),M.clamp(dy,YMIN,YMAX)]); render(); });
+    let lastChart;
+    function render(){ const ch=plot.chart(); lastChart=ch; ch.setX(XMIN,XMAX).setY(YMIN,YMAX); ch.clear(); ch.axisY(niceTicks(YMIN,YMAX,5)); ch.grid(); ch.axisX(niceTicks(XMIN,XMAX,5));
+      const xs=pts.map(p=>p[0]),ys=pts.map(p=>p[1]);
+      if(pts.length>=2){ const {a,b,r}=M.linreg(xs,ys);
+        if(showRes){ const ctx=ch.ctx; pts.forEach(([x,y])=>{ const yhat=a+b*x; const top=Math.max(y,yhat),bot=Math.min(y,yhat); const side=Math.abs(ch.Y(bot)-ch.Y(top)); ctx.fillStyle=hexA(COL.amber,.22); ctx.fillRect(ch.X(x),ch.Y(top),side,ch.Y(bot)-ch.Y(top)); ctx.strokeStyle=hexA(COL.amber,.7); ctx.strokeRect(ch.X(x),ch.Y(top),side,ch.Y(bot)-ch.Y(top)); }); }
+        ch.line(XMIN,a+b*XMIN,XMAX,a+b*XMAX,COL.coral,2.5);
+        let sse=0; pts.forEach(([x,y])=>sse+=(y-(a+b*x))**2);
+        stats.set([{k:'n',v:pts.length},{k:'slope',v:M.round(b,3),accent:1},{k:'intercept',v:M.round(a,3)},{k:'r',v:M.round(r,3),accent:1},{k:'r²',v:M.round(r*r,3)},{k:'SSE',v:M.round(sse,2)}]);
+        plot.setTitle(`ŷ = ${M.round(a,2)} ${b>=0?'+':'−'} ${Math.abs(M.round(b,2))}·x`);
+      } else { stats.set([{k:'n',v:pts.length},{k:'note',v:'add ≥2'}]); plot.setTitle('Click to add at least two points'); }
+      ch.points(xs,ys,hexA(COL.data,.85),5);
+    }
+    render();
+  }
+});
+/* ===== Sampling : Reese's Pieces (sampling distribution of a proportion) ===== */
+add({ id:'reeses', cat:'sampling', tag:'simulation', title:"Reese's Pieces — Sample Proportions",
+  blurb:'Each grab of candies gives a sample proportion orange. Take thousands of samples and watch the sampling distribution of p̂ build up.',
+  build(host){
+    let dist=[];
+    const piS=UI.slider({label:'Population proportion orange (π)',min:5,max:95,value:45,fmt:v=>(v/100).toFixed(2),oninput:reset});
+    const nS=UI.slider({label:'Sample size (n)',min:5,max:300,value:25,fmt:v=>v,oninput:reset});
+    const stats=UI.statsBox();
+    const plot=UI.plotCard("Sampling distribution of p̂",260);
+    const curve=UI.seg({label:'Normal model overlay',options:[{label:'Off',value:0},{label:'On',value:1}],value:1,onchange:()=>draw()});
+    const ctrl=UI.buttons([
+      {label:'Draw 1',onclick:()=>{one();draw();}},
+      {label:'Draw 100',onclick:()=>{for(let i=0;i<100;i++)one();draw();}},
+      {label:'Draw 1000',primary:true,onclick:()=>{for(let i=0;i<1000;i++)one();draw();}},
+    ]);
+    host.appendChild(UI.appGrid([piS,nS,ctrl,curve,stats,UI.note('The simulated SD closes in on the theory value √(π(1−π)/n). With small n or π near 0 or 1 the shape stays visibly skewed — that is when the normal model breaks down.')],[plot]));
+    function reset(){ dist=[]; draw(); }
+    function one(){ const pi=piS.get()/100,n=nS.get(); dist.push(M.binom(n,pi)/n); }
+    function draw(){ const pi=piS.get()/100,n=nS.get(); const ch=plot.chart(); ch.setX(0,1);
+      if(!dist.length){ ch.setY(0,1); ch.clear(); ch.grid(); ch.axisX(niceTicks(0,1,6)); stats.set([{k:'samples',v:0},{k:'theory SD',v:M.round(Math.sqrt(pi*(1-pi)/n),3)}]); return; }
+      const nb=Math.min(40,Math.max(10,Math.round(Math.sqrt(dist.length))));
+      const hb=histogram(dist,nb,0,1); const total=dist.length; const bw=hb[0].hi-hb[0].lo;
+      const props=hb.map(b=>b.count/total/bw);
+      const sdTheory=Math.sqrt(pi*(1-pi)/n);
+      const maxd=Math.max(...props,M.normPdf(pi,pi,sdTheory));
+      ch.setY(0,maxd*1.15); ch.clear();
+      ch.bars(hb.map((b,i)=>({lo:b.lo,hi:b.hi,count:props[i]})),hexA(COL.sampling,.78)); ch.grid(); ch.axisX(niceTicks(0,1,6));
+      const obsMean=M.mean(dist),obsSD=M.sd(dist);
+      if(curve.get()=='1') ch.curve(x=>M.normPdf(x,pi,sdTheory),COL.coral,2.5);
+      ch.marker(obsMean,'mean',COL.ink);
+      stats.set([{k:'samples',v:total},{k:'mean of p̂',v:M.round(obsMean,3),accent:1},{k:'SD of p̂',v:M.round(obsSD,3),accent:1},{k:'theory SD',v:M.round(sdTheory,3)}]);
+    }
+    reset();
+  }
+});
+
+/* ===== Sampling : Confidence Interval coverage ===== */
+add({ id:'ci-sim', cat:'sampling', tag:'simulation', title:'Confidence Interval Coverage',
+  blurb:'Draw sample after sample, build a confidence interval from each, and count how many actually capture the true parameter. See what "95% confident" means.',
+  build(host){
+    let intervals=[]; let captured=0; let total=0;
+    const levelS=UI.slider({label:'Confidence level',min:80,max:99,value:95,fmt:v=>v+'%',oninput:reset});
+    const piS=UI.slider({label:'True proportion (π)',min:10,max:90,value:50,fmt:v=>(v/100).toFixed(2),oninput:reset});
+    const nS=UI.slider({label:'Sample size (n)',min:10,max:500,value:50,fmt:v=>v,oninput:reset});
+    const stats=UI.statsBox();
+    const plot=UI.plotCard('Each line is one interval — red ones miss the true value',330);
+    const ctrl=UI.buttons([
+      {label:'Draw 1',onclick:()=>{one();draw();}},
+      {label:'Draw 50',primary:true,onclick:()=>{for(let i=0;i<50;i++)one();draw();}},
+      {label:'Reset',onclick:reset},
+    ]);
+    host.appendChild(UI.appGrid([levelS,piS,nS,ctrl,stats,UI.note('Over the long run, about <b>(confidence level)%</b> of intervals capture π. Any single interval either does or does not — the confidence is in the <i>procedure</i>, not one result.')],[plot]));
+    function reset(){ intervals=[]; captured=0; total=0; draw(); }
+    function one(){ const pi=piS.get()/100,n=nS.get(),z=M.normInv(1-(1-levelS.get()/100)/2);
+      const phat=M.binom(n,pi)/n; const se=Math.sqrt(phat*(1-phat)/n)||0.001; const lo=phat-z*se,hi=phat+z*se;
+      const ok=(pi>=lo&&pi<=hi); if(ok)captured++; total++; intervals.push({lo,hi,phat,ok}); if(intervals.length>55)intervals.shift(); }
+    function draw(){ const pi=piS.get()/100; const ch=plot.chart(); const show=intervals;
+      let xlo=pi-0.35,xhi=pi+0.35; show.forEach(iv=>{ xlo=Math.min(xlo,iv.lo); xhi=Math.max(xhi,iv.hi); });
+      ch.setX(xlo-0.02,xhi+0.02).setY(0,Math.max(2,show.length+1)); ch.clear(); ch.vline(pi,COL.ink,2,[5,4]); ch.axisX(niceTicks(xlo,xhi,6));
+      const ctx=ch.ctx; show.forEach((iv,i)=>{ const y=ch.Y(i+1); ctx.strokeStyle=iv.ok?hexA(COL.sampling,.85):COL.coral; ctx.lineWidth=2.4;
+        ctx.beginPath(); ctx.moveTo(ch.X(iv.lo),y); ctx.lineTo(ch.X(iv.hi),y); ctx.stroke();
+        ctx.fillStyle=iv.ok?COL.sampling:COL.coral; ctx.beginPath(); ctx.arc(ch.X(iv.phat),y,2.6,0,7); ctx.fill(); });
+      ctx.fillStyle=COL.ink; ctx.font='bold 10px "JetBrains Mono",monospace'; ctx.textAlign='center'; ctx.fillText('π='+pi.toFixed(2),ch.X(pi),ch.py1-2);
+      stats.set([{k:'intervals',v:total},{k:'captured',v:captured,accent:1},{k:'capture rate',v:(total? (100*captured/total).toFixed(1):'0')+'%',accent:1},{k:'target',v:levelS.get()+'%'}]);
+    }
+    reset();
+  }
+});
+/* ===== Probability : Normal Probability Calculator ===== */
+add({ id:'normal-calc', cat:'prob', tag:'calculator', title:'Normal Probability Calculator',
+  blurb:'Set the mean and SD, choose a region, and read off the probability with the area shaded under the curve.',
+  build(host){
+    let mode='between';
+    const meanI=UI.number({label:'Mean (μ)',value:0,onchange:draw});
+    const sdI=UI.number({label:'Standard deviation (σ)',value:1,min:0.0001,onchange:draw});
+    const modeSeg=UI.seg({label:'Region',options:[{label:'x <',value:'lt'},{label:'x >',value:'gt'},{label:'between',value:'between'}],value:'between',onchange:v=>{mode=v;syncInputs();draw();}});
+    const aI=UI.number({label:'Lower bound (a)',value:-1,onchange:draw});
+    const bI=UI.number({label:'Upper bound (b)',value:1,onchange:draw});
+    const stats=UI.statsBox();
+    const plot=UI.plotCard('Normal distribution',300);
+    host.appendChild(UI.appGrid([meanI,sdI,modeSeg,aI,bI,stats,UI.note('The total area under any normal curve is 1. The shaded fraction is the probability of landing in that region — switch between tails and the middle to build intuition for z-scores.')],[plot]));
+    function syncInputs(){ aI.style.display = (mode==='gt')?'none':'flex'; bI.style.display=(mode==='lt')?'none':'flex';
+      aI.querySelector('label').textContent = mode==='between'?'Lower bound (a)':'Cutoff (x)';
+      bI.querySelector('label').textContent='Upper bound (b)'; if(mode==='gt') aI.querySelector('label').textContent='Cutoff (x)'; }
+    function draw(){ const mu=meanI.get(),sd=Math.max(1e-6,sdI.get()),a=aI.get(),b=bI.get();
+      const ch=plot.chart(); const lo=mu-4*sd,hi=mu+4*sd; const peak=M.normPdf(mu,mu,sd);
+      ch.setX(lo,hi).setY(0,peak*1.18); ch.clear(); ch.grid(); ch.axisX(niceTicks(lo,hi,7));
+      const pdf=x=>M.normPdf(x,mu,sd); let p=0,sa,sb;
+      if(mode==='lt'){ sa=lo; sb=a; p=M.normCdf(a,mu,sd); }
+      else if(mode==='gt'){ sa=a; sb=hi; p=1-M.normCdf(a,mu,sd); }
+      else { sa=Math.min(a,b); sb=Math.max(a,b); p=M.normCdf(sb,mu,sd)-M.normCdf(sa,mu,sd); }
+      ch.shade(pdf,sa,sb,hexA(COL.prob,.3)); ch.curve(pdf,COL.prob,2.5);
+      if(mode!=='gt')ch.vline(mode==='lt'?a:Math.min(a,b),COL.ink,1.5,[4,3]);
+      if(mode!=='lt')ch.vline(mode==='gt'?a:Math.max(a,b),COL.ink,1.5,[4,3]);
+      const za=(a-mu)/sd, zb=(b-mu)/sd;
+      stats.set([{k:'probability',v:M.round(p,4),accent:1},{k:'percent',v:M.round(p*100,2)+'%',accent:1},{k:'z (lower)',v:M.round(za,3)},{k:'z (upper)',v:M.round(zb,3)}]);
+    }
+    syncInputs(); draw();
+  }
+});
+
+/* ===== Probability : t Probability Calculator ===== */
+add({ id:'t-calc', cat:'prob', tag:'calculator', title:'t Probability Calculator',
+  blurb:'The Student t distribution with adjustable degrees of freedom, shown against the standard normal so you can see the heavier tails.',
+  build(host){
+    let mode='lt';
+    const dfI=UI.slider({label:'Degrees of freedom',min:1,max:120,value:8,fmt:v=>v,oninput:draw});
+    const modeSeg=UI.seg({label:'Region',options:[{label:'t <',value:'lt'},{label:'t >',value:'gt'},{label:'|t| >',value:'two'}],value:'lt',onchange:v=>{mode=v;draw();}});
+    const tI=UI.number({label:'t value',value:1.5,onchange:draw});
+    const normSeg=UI.seg({label:'Compare to standard normal',options:[{label:'Off',value:0},{label:'On',value:1}],value:1,onchange:draw});
+    const stats=UI.statsBox();
+    const plot=UI.plotCard('t distribution',300);
+    host.appendChild(UI.appGrid([dfI,modeSeg,tI,normSeg,stats,UI.note('As degrees of freedom grow, the t distribution converges to the standard normal. With small df the tails are heavier — which is exactly why t-based intervals are wider.')],[plot]));
+    function draw(){ const df=dfI.get(),t=tI.get(); const ch=plot.chart(); const lo=-5,hi=5; const peak=M.tPdf(0,df);
+      ch.setX(lo,hi).setY(0,peak*1.18); ch.clear(); ch.grid(); ch.axisX(niceTicks(lo,hi,7));
+      const pdf=x=>M.tPdf(x,df); let p,sa,sb;
+      if(mode==='lt'){ sa=lo;sb=t;p=M.tCdf(t,df); ch.shade(pdf,sa,sb,hexA(COL.prob,.3)); }
+      else if(mode==='gt'){ sa=t;sb=hi;p=1-M.tCdf(t,df); ch.shade(pdf,sa,sb,hexA(COL.prob,.3)); }
+      else { const at=Math.abs(t); p=2*(1-M.tCdf(at,df)); ch.shade(pdf,lo,-at,hexA(COL.prob,.3)); ch.shade(pdf,at,hi,hexA(COL.prob,.3)); }
+      if(normSeg.get()=='1') ch.curve(x=>M.normPdf(x,0,1),hexA(COL.ink,.4),1.6,200);
+      ch.curve(pdf,COL.prob,2.5); ch.vline(mode==='two'?Math.abs(t):t,COL.ink,1.5,[4,3]); if(mode==='two')ch.vline(-Math.abs(t),COL.ink,1.5,[4,3]);
+      stats.set([{k:'probability',v:M.round(p,4),accent:1},{k:'percent',v:M.round(p*100,3)+'%',accent:1},{k:'df',v:df},{k:'t',v:M.round(t,3)}]);
+    }
+    draw();
+  }
+});
+/* ===== Inference : One Proportion (randomization / null distribution) ===== */
+add({ id:'one-prop', cat:'infer', tag:'randomization', title:'One Proportion — Test of Significance',
+  blurb:'Suppose the null hypothesis is true. Simulate that chance process thousands of times and see how unusual your observed result really is.',
+  build(host){
+    let nullDist=[];
+    const nS=UI.number({label:'Sample size (n)',value:40,min:1,onchange:reset});
+    const obsS=UI.number({label:'Observed successes',value:26,min:0,onchange:()=>{draw();}});
+    const piS=UI.slider({label:'Null proportion (π₀)',min:5,max:95,value:50,fmt:v=>(v/100).toFixed(2),oninput:reset});
+    const tail=UI.seg({label:'Alternative',options:[{label:'>',value:'gt'},{label:'<',value:'lt'},{label:'≠',value:'two'}],value:'gt',onchange:()=>draw()});
+    const stats=UI.statsBox();
+    const plot=UI.plotCard('Distribution of sample proportions, assuming H₀ is true',260);
+    const ctrl=UI.buttons([
+      {label:'Simulate 1000',primary:true,onclick:()=>{run(1000);}},
+      {label:'+ 5000',onclick:()=>{run(5000);}},
+      {label:'Reset',onclick:reset},
+    ]);
+    host.appendChild(UI.appGrid([nS,obsS,piS,tail,ctrl,stats,UI.note('The <b>p-value</b> is the share of simulated samples at least as extreme as what you observed. Small p-value → the observed result would rarely happen by chance alone if H₀ were true.')],[plot]));
+    function reset(){ nullDist=[]; draw(); }
+    function run(k){ const n=nS.get(),pi=piS.get()/100; for(let i=0;i<k;i++) nullDist.push(M.binom(n,pi)/n); draw(); }
+    function draw(){ const n=nS.get(),pi=piS.get()/100,obs=obsS.get()/n; const ch=plot.chart(); ch.setX(0,1);
+      if(!nullDist.length){ ch.setY(0,1); ch.clear(); ch.grid(); ch.vline(obs,COL.coral,2.5); ch.marker(obs,'p̂='+M.round(obs,3),COL.coral); ch.axisX(niceTicks(0,1,6)); stats.set([{k:'observed p̂',v:M.round(obs,3),accent:1},{k:'simulations',v:0}]); return; }
+      const nb=Math.min(45,Math.max(12,Math.round(Math.sqrt(nullDist.length)))); const hb=histogram(nullDist,nb,0,1);
+      const maxc=Math.max(...hb.map(b=>b.count)); ch.setY(0,maxc*1.15); ch.clear();
+      const eps=1/(2*n);
+      hb.forEach(b=>{ const mid=(b.lo+b.hi)/2; let extreme=false;
+        if(tail.get()==='gt')extreme=mid>=obs-eps; else if(tail.get()==='lt')extreme=mid<=obs+eps; else extreme=Math.abs(mid-pi)>=Math.abs(obs-pi)-eps;
+        ch.bars([b],extreme?hexA(COL.coral,.8):hexA(COL.infer,.35)); });
+      ch.grid(); ch.axisX(niceTicks(0,1,6)); ch.vline(obs,COL.ink,2,[5,3]); ch.marker(obs,'observed',COL.ink);
+      let count=0; const total=nullDist.length;
+      nullDist.forEach(p=>{ if(tail.get()==='gt'){ if(p>=obs-eps)count++; } else if(tail.get()==='lt'){ if(p<=obs+eps)count++; } else { if(Math.abs(p-pi)>=Math.abs(obs-pi)-eps)count++; } });
+      const pval=count/total;
+      stats.set([{k:'observed p̂',v:M.round(obs,3),accent:1},{k:'simulations',v:total},{k:'count as extreme',v:count},{k:'p-value',v:M.round(pval,4),accent:1}]);
+    }
+    reset();
+  }
+});
+
+/* ===== Inference : Two groups randomization test ===== */
+add({ id:'two-means', cat:'infer', tag:'randomization', title:'Randomization Test — Two Groups',
+  blurb:'Compare two groups by repeatedly shuffling the group labels. If group really did not matter, how big a difference would chance alone produce?',
+  build(host){
+    let A=[7,8,5,9,6,8,7,10,6,9], B=[5,6,4,7,5,6,5,4,6,5]; let nullDist=[]; let obsDiff=0;
+    const taA=UI.textarea({label:'Group A',value:A.join(', '),onchange:v=>{A=parseNums(v);reset();}});
+    const taB=UI.textarea({label:'Group B',value:B.join(', '),onchange:v=>{B=parseNums(v);reset();}});
+    const tail=UI.seg({label:'Alternative (A − B)',options:[{label:'>',value:'gt'},{label:'<',value:'lt'},{label:'≠',value:'two'}],value:'two',onchange:()=>draw()});
+    const stats=UI.statsBox();
+    const plot=UI.plotCard('Differences in means when labels are shuffled (H₀)',260);
+    const ctrl=UI.buttons([
+      {label:'Shuffle 1000',primary:true,onclick:()=>run(1000)},
+      {label:'+ 5000',onclick:()=>run(5000)},
+      {label:'Reset',onclick:reset},
+    ]);
+    host.appendChild(UI.appGrid([taA,taB,tail,ctrl,stats,UI.note('Pooling both groups and re-dealing the labels simulates the world where the grouping is irrelevant. Your real difference sitting far in the tail is evidence the groups genuinely differ.')],[plot]));
+    function reset(){ nullDist=[]; obsDiff=(A.length&&B.length)?M.mean(A)-M.mean(B):0; draw(); }
+    function run(k){ if(A.length<1||B.length<1)return; const pool=[...A,...B],nA=A.length;
+      for(let i=0;i<k;i++){ const sh=M.shuffle(pool); const gA=sh.slice(0,nA),gB=sh.slice(nA); nullDist.push(M.mean(gA)-M.mean(gB)); } draw(); }
+    function draw(){ const ch=plot.chart();
+      if(!nullDist.length){ const r=Math.max(1,Math.abs(obsDiff)*1.5); ch.setX(-r,r).setY(0,1); ch.clear(); ch.grid(); ch.vline(obsDiff,COL.coral,2.5); ch.marker(obsDiff,'obs '+M.round(obsDiff,2),COL.coral); ch.axisX(niceTicks(-r,r,6)); stats.set([{k:'observed diff',v:M.round(obsDiff,3),accent:1},{k:'shuffles',v:0}]); return; }
+      const lo=Math.min(M.min(nullDist),obsDiff)*1.1, hi=Math.max(M.max(nullDist),obsDiff)*1.1;
+      const span=Math.max(Math.abs(lo),Math.abs(hi)); const nb=Math.min(45,Math.max(12,Math.round(Math.sqrt(nullDist.length))));
+      const hb=histogram(nullDist,nb,-span,span); const maxc=Math.max(...hb.map(b=>b.count));
+      ch.setX(-span,span).setY(0,maxc*1.15); ch.clear();
+      hb.forEach(b=>{ const mid=(b.lo+b.hi)/2; let ex=false;
+        if(tail.get()==='gt')ex=mid>=obsDiff; else if(tail.get()==='lt')ex=mid<=obsDiff; else ex=Math.abs(mid)>=Math.abs(obsDiff);
+        ch.bars([b],ex?hexA(COL.coral,.8):hexA(COL.infer,.35)); });
+      ch.grid(); ch.axisX(niceTicks(-span,span,6)); ch.vline(obsDiff,COL.ink,2,[5,3]); ch.marker(obsDiff,'observed',COL.ink);
+      let count=0; const total=nullDist.length;
+      nullDist.forEach(d=>{ if(tail.get()==='gt'){if(d>=obsDiff)count++;} else if(tail.get()==='lt'){if(d<=obsDiff)count++;} else {if(Math.abs(d)>=Math.abs(obsDiff))count++;} });
+      stats.set([{k:'mean A',v:M.round(M.mean(A),2)},{k:'mean B',v:M.round(M.mean(B),2)},{k:'observed diff',v:M.round(obsDiff,3),accent:1},{k:'shuffles',v:total},{k:'p-value',v:M.round(count/total,4),accent:1}]);
+    }
+    reset();
+  }
+});
+/* ===== Multiple Variables : Bootstrap CI for difference in means ===== */
+add({ id:'bootstrap-two', cat:'multi', tag:'bootstrap', title:'Bootstrap — Difference of Two Groups',
+  blurb:'Resample each group with replacement thousands of times to build a bootstrap distribution and a percentile confidence interval for the difference in means.',
+  build(host){
+    let A=[7,8,5,9,6,8,7,10,6,9], B=[5,6,4,7,5,6,5,4,6,5]; let boot=[];
+    const taA=UI.textarea({label:'Group A',value:A.join(', '),onchange:v=>{A=parseNums(v);reset();}});
+    const taB=UI.textarea({label:'Group B',value:B.join(', '),onchange:v=>{B=parseNums(v);reset();}});
+    const levelS=UI.slider({label:'Confidence level',min:80,max:99,value:95,fmt:v=>v+'%',oninput:draw});
+    const stats=UI.statsBox();
+    const plot=UI.plotCard('Bootstrap distribution of (mean A − mean B)',260);
+    const ctrl=UI.buttons([{label:'Resample 1000',primary:true,onclick:()=>run(1000)},{label:'+ 5000',onclick:()=>run(5000)},{label:'Reset',onclick:reset}]);
+    host.appendChild(UI.appGrid([taA,taB,levelS,ctrl,stats,UI.note('A percentile bootstrap interval just chops off the lower and upper tails of this distribution. If 0 sits outside the interval, the data suggest a real difference.')],[plot]));
+    function reset(){ boot=[]; draw(); }
+    function run(k){ if(A.length<1||B.length<1)return; for(let i=0;i<k;i++){ boot.push(M.mean(M.sampleWithRep(A,A.length))-M.mean(M.sampleWithRep(B,B.length))); } draw(); }
+    function draw(){ const ch=plot.chart(); const obs=(A.length&&B.length)?M.mean(A)-M.mean(B):0;
+      if(!boot.length){ const r=Math.max(1,Math.abs(obs)*1.6); ch.setX(Math.min(-0.2,obs-r),Math.max(0.2,obs+r)).setY(0,1); ch.clear(); ch.grid(); ch.vline(obs,COL.multi,2.5); ch.vline(0,COL.ink,1.5,[4,3]); ch.axisX(niceTicks(obs-r,obs+r,6)); stats.set([{k:'observed diff',v:M.round(obs,3),accent:1},{k:'resamples',v:0}]); return; }
+      const lo=M.min(boot),hi=M.max(boot),pad=(hi-lo)*0.08||1; const nb=Math.min(45,Math.max(12,Math.round(Math.sqrt(boot.length))));
+      const hb=histogram(boot,nb,lo-pad,hi+pad); const maxc=Math.max(...hb.map(b=>b.count));
+      ch.setX(lo-pad,hi+pad).setY(0,maxc*1.15); ch.clear();
+      const alpha=(1-levelS.get()/100)/2; const cLo=M.quantile(boot,alpha),cHi=M.quantile(boot,1-alpha);
+      hb.forEach(b=>{ const mid=(b.lo+b.hi)/2; const inside=mid>=cLo&&mid<=cHi; ch.bars([b],inside?hexA(COL.multi,.75):hexA(COL.multi,.28)); });
+      ch.grid(); ch.axisX(niceTicks(lo,hi,6)); ch.vline(0,COL.ink,1.5,[4,3]); ch.vline(cLo,COL.amber,2); ch.vline(cHi,COL.amber,2);
+      stats.set([{k:'observed diff',v:M.round(obs,3),accent:1},{k:'resamples',v:boot.length},{k:'CI lower',v:M.round(cLo,3),accent:1},{k:'CI upper',v:M.round(cHi,3),accent:1},{k:'contains 0?',v:(cLo<=0&&cHi>=0)?'yes':'no'}]);
+    }
+    reset();
+  }
+});
+
+/* ===== Classics : Monty Hall ===== */
+add({ id:'monty', cat:'classic', tag:'game', title:'Monty Hall',
+  blurb:'Pick a door. The host opens a goat. Do you switch? Play by hand, then let the simulator settle the argument over thousands of games.',
+  build(host){
+    let prize=0,pick=-1,opened=-1,stage='pick'; let stayW=0,stayN=0,swW=0,swN=0;
+    const doorsWrap=document.createElement('div'); doorsWrap.className='plot-card';
+    doorsWrap.innerHTML=`<div class="plot-title">Click a door to choose</div><div id="doors" style="display:flex;gap:14px;justify-content:center;padding:14px 0;"></div><div id="msg" style="text-align:center;font-family:var(--mono);font-size:.85rem;color:var(--ink-soft);min-height:1.4em;"></div>`;
+    const stats=UI.statsBox();
+    const plot=UI.plotCard('Simulated win rate: stay vs. switch',180);
+    const sim=UI.buttons([{label:'Simulate 1000 (always switch vs always stay)',primary:true,onclick:()=>{simulate(1000);}},{label:'Reset stats',onclick:()=>{stayW=stayN=swW=swN=0;updateStats();drawBar();}}]);
+    host.appendChild(UI.appGrid([sim,stats,UI.note('Switching wins about <b>2/3</b> of the time. Your first pick is right only 1/3 of the time, and the host opening a goat hands all of that remaining 2/3 to the other door.')],[doorsWrap,plot]));
+    const doorsEl=doorsWrap.querySelector('#doors'), msgEl=doorsWrap.querySelector('#msg');
+    function newGame(){ prize=Math.floor(Math.random()*3); pick=-1; opened=-1; stage='pick'; msgEl.textContent='Pick a door.'; renderDoors(); }
+    function renderDoors(){ doorsEl.innerHTML='';
+      for(let i=0;i<3;i++){ const d=document.createElement('button'); d.className='abtn'; d.style.cssText='width:74px;height:92px;font-size:1.6rem;flex:none;border-radius:10px;';
+        const isOpen=(i===opened)||(stage==='done'); d.textContent= isOpen? (i===prize?'🚗':'🐐') : (i===pick?'👉':'🚪');
+        if(i===pick)d.style.borderColor=COL.classic; if(i===opened)d.style.opacity=.6;
+        d.onclick=()=>onClick(i); doorsEl.appendChild(d); } }
+    function onClick(i){ if(stage==='pick'){ pick=i; do{opened=Math.floor(Math.random()*3);}while(opened===prize||opened===pick); stage='decide'; msgEl.innerHTML=`Door ${opened+1} had a goat. <b>Stay</b> or <b>switch</b>?`; renderDecision(); renderDoors(); }
+      else if(stage==='decide'){ /* clicking doors disabled during decide */ } }
+    function renderDecision(){ const old=doorsWrap.querySelector('#decide'); if(old)old.remove();
+      const wrap=document.createElement('div'); wrap.id='decide'; wrap.style.cssText='display:flex;gap:10px;justify-content:center;margin-top:6px;';
+      const stayB=document.createElement('button'); stayB.className='abtn'; stayB.textContent='Stay with door '+(pick+1);
+      const swB=document.createElement('button'); swB.className='abtn primary'; const other=[0,1,2].find(x=>x!==pick&&x!==opened); swB.textContent='Switch to door '+(other+1);
+      stayB.onclick=()=>decide(pick); swB.onclick=()=>decide(other); wrap.append(stayB,swB); msgEl.after(wrap); }
+    function decide(choice){ const switched=(choice!==pick); const won=(choice===prize); stage='done';
+      if(switched){ swN++; if(won)swW++; } else { stayN++; if(won)stayW++; }
+      const dec=doorsWrap.querySelector('#decide'); if(dec)dec.remove();
+      msgEl.innerHTML=`${won?'🎉 You won the car!':'🐐 A goat.'} (${switched?'switched':'stayed'}) &nbsp; <span style="color:var(--c-classic);cursor:pointer;text-decoration:underline;" id="again">play again</span>`;
+      doorsWrap.querySelector('#again').onclick=newGame; renderDoors(); updateStats(); drawBar(); }
+    function simulate(k){ for(let i=0;i<k;i++){ const pr=Math.floor(Math.random()*3),pk=Math.floor(Math.random()*3);
+      stayN++; if(pk===pr)stayW++; swN++; if(pk!==pr)swW++; } updateStats(); drawBar(); }
+    function updateStats(){ stats.set([{k:'stay games',v:stayN},{k:'stay win %',v:stayN?M.round(100*stayW/stayN,1)+'%':'—',accent:1},{k:'switch games',v:swN},{k:'switch win %',v:swN?M.round(100*swW/swN,1)+'%':'—',accent:1}]); }
+    function drawBar(){ const ch=plot.chart(); ch.setX(0,2).setY(0,1); ch.clear(); ch.axisY([0,.25,.5,.667,.75,1],v=>(v*100).toFixed(0)+'%');
+      const sr=stayN?stayW/stayN:0, wr=swN?swW/swN:0; const ctx=ch.ctx;
+      [[0.5,sr,COL.faint,'stay'],[1.5,wr,COL.classic,'switch']].forEach(([cx,val,col,lab])=>{ const w=ch.X(0.7)-ch.X(0); ctx.fillStyle=col; const x=ch.X(cx)-w/2; ctx.fillRect(x,ch.Y(val),w,ch.py0-ch.Y(val));
+        ctx.fillStyle=COL.ink; ctx.font='bold 11px "JetBrains Mono",monospace'; ctx.textAlign='center'; ctx.fillText((val*100).toFixed(1)+'%',ch.X(cx),ch.Y(val)-6); ctx.fillStyle=COL.soft; ctx.fillText(lab,ch.X(cx),ch.py0+14); });
+      ch.line(0,2/3,2,2/3,hexA(COL.coral,.6),1.5,[5,4]); }
+    newGame(); updateStats(); drawBar();
+  }
+});
+
+/* ===== Classics : Random Babies ===== */
+add({ id:'random-babies', cat:'classic', tag:'simulation', title:'Random Babies',
+  blurb:'Hand newborns back to mothers completely at random. How many babies, on average, end up with the right mother? Rarely as many as you would guess.',
+  build(host){
+    let counts={}, trials=0; let nMoms=4;
+    const nS=UI.slider({label:'Number of mothers/babies',min:2,max:10,value:4,fmt:v=>v,oninput:reset});
+    const stats=UI.statsBox();
+    const plot=UI.plotCard('Number of correct matches per trial',240);
+    const ctrl=UI.buttons([{label:'1 trial',onclick:()=>{run(1);}},{label:'1000 trials',primary:true,onclick:()=>run(1000)},{label:'Reset',onclick:reset}]);
+    host.appendChild(UI.appGrid([nS,ctrl,stats,UI.note('The long-run average number of matches is exactly <b>1</b>, no matter how many mothers — a beautiful fact. Getting <i>zero</i> matches is surprisingly common.')],[plot]));
+    function reset(){ counts={}; trials=0; nMoms=nS.get(); draw(); }
+    function run(k){ const n=nS.get(); for(let i=0;i<k;i++){ const perm=M.shuffle(Array.from({length:n},(_,j)=>j)); let m=0; for(let j=0;j<n;j++) if(perm[j]===j)m++; counts[m]=(counts[m]||0)+1; trials++; } draw(); }
+    function draw(){ const n=nS.get(); const ch=plot.chart(); ch.setX(-0.5,n+0.5);
+      const keys=[]; for(let i=0;i<=n;i++)keys.push(i); const maxc=Math.max(1,...keys.map(k=>counts[k]||0));
+      ch.setY(0,maxc*1.15); ch.clear(); ch.axisY(niceTicks(0,maxc,4));
+      keys.forEach(k=>{ if(k===n-1)return; const c=counts[k]||0; ch.bars([{lo:k-0.4,hi:k+0.4,count:c}], k===0?hexA(COL.coral,.8):hexA(COL.classic,.78)); });
+      ch.grid(); ch.axisX(keys.filter(k=>k!==n-1),v=>v);
+      let totalMatches=0; Object.entries(counts).forEach(([k,c])=>totalMatches+=(+k)*c);
+      stats.set([{k:'trials',v:trials},{k:'avg matches',v:trials?M.round(totalMatches/trials,3):'—',accent:1},{k:'P(0 matches)',v:trials?M.round((counts[0]||0)/trials,3):'—',accent:1},{k:'theory avg',v:'1.000'}]);
+    }
+    reset();
+  }
+});
+/* --------------------- (4) CATALOG RENDERING ------------------------ */
+function renderCatalog(){
+  const root=document.getElementById('catalog'); root.innerHTML='';
+  const nav=document.getElementById('topnav'); nav.innerHTML='';
+  document.getElementById('appletCount').textContent=APPLETS.length;
+  Object.entries(CATS).forEach(([key,cat])=>{
+    const items=APPLETS.filter(a=>a.cat===key); if(!items.length)return;
+    const a=document.createElement('a'); a.href='#'+key; a.textContent=cat.name; nav.appendChild(a);
+    const sec=document.createElement('section'); sec.className='section'; sec.id=key; sec.style.setProperty('--cat',cat.color);
+    const head=document.createElement('div'); head.className='sec-head';
+    head.innerHTML=`<span class="num">${cat.n}</span><h2>${cat.name}</h2><span class="desc">${cat.desc}</span>`;
+    const grid=document.createElement('div'); grid.className='grid';
+    items.forEach(ap=>{
+      const card=document.createElement('button'); card.className='card'; card.style.setProperty('--cat',cat.color);
+      card.innerHTML=`<span class="tag">${ap.tag}</span><span class="ttl">${ap.title}</span><span class="blurb">${ap.blurb}</span>
+        <svg class="go" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M13 6l6 6-6 6"/></svg>`;
+      card.onclick=()=>goApplet(ap.id); grid.appendChild(card);
+    });
+    sec.append(head,grid); root.appendChild(sec);
+  });
+}
+
+/* ------------------------- (5) ROUTER ------------------------------- */
+const homeEl=document.getElementById('home'), viewEl=document.getElementById('appletView');
+function goHome(){ location.hash=''; showHome(); }
+function showHome(){ viewEl.style.display='none'; homeEl.style.display='block'; }
+function goApplet(id){ location.hash='/'+id; }
+function openApplet(id){
+  const ap=APPLETS.find(a=>a.id===id); if(!ap){ showHome(); return; }
+  const cat=CATS[ap.cat];
+  homeEl.style.display='none'; viewEl.style.display='block'; viewEl.style.setProperty('--accent',cat.color);
+  viewEl.innerHTML='';
+  const w=document.createElement('div'); w.className='wrap';
+  const top=document.createElement('div'); top.className='app-top';
+  top.innerHTML=`<button class="back" onclick="goHome()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>All tools</button>
+    <span class="app-cat" style="background:${cat.color}">${cat.name}</span>`;
+  const head=document.createElement('div'); head.className='app-head';
+  head.innerHTML=`<h2>${ap.title}</h2><p>${ap.blurb}</p>`;
+  const hostBox=document.createElement('div');
+  w.append(top,head,hostBox); viewEl.appendChild(w);
+  try{ ap.build(hostBox); }catch(e){ hostBox.innerHTML=`<div class="panel">This tool hit an error: <code>${e.message}</code></div>`; console.error(e); }
+  window.scrollTo(0,0);
+}
+function route(){ const h=location.hash; if(h.startsWith('#/')) openApplet(decodeURIComponent(h.slice(2))); else showHome(); }
+window.addEventListener('hashchange',route);
+
+/* -------------------- (6) HERO ANIMATION ---------------------------- */
+function heroAnim(){
+  const cv=document.getElementById('heroCanvas'); const ch=new Chart(cv,{cssH:300,m:{t:14,r:14,b:30,l:14}});
+  const pop=Array.from({length:5000},()=>Math.exp(M.normal(1.4,0.55))); // skewed population
+  const n=18; let means=[];
+  const popMean=M.mean(pop);
+  const reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function frame(){
+    for(let s=0;s<3;s++){ const samp=M.sampleWithRep(pop,n); means.push(M.mean(samp)); }
+    if(means.length>4000)means=means.slice(-4000);
+    const lo=popMean-3, hi=popMean+3;
+    const hb=histogram(means.filter(m=>m>=lo&&m<=hi),34,lo,hi); const maxc=Math.max(1,...hb.map(b=>b.count));
+    ch.setX(lo,hi).setY(0,maxc*1.18); ch.clear();
+    ch.bars(hb,hexA(COL.sampling,.8)); ch.vline(popMean,COL.coral,2,[5,4]);
+    document.getElementById('heroN').textContent=means.length;
+    document.getElementById('heroMean').textContent=M.round(M.mean(means),2);
+    document.getElementById('heroSD').textContent=M.round(M.sd(means),3);
+    if(!reduce && means.length<3600) requestAnimationFrame(frame);
+  }
+  if(reduce){ means=Array.from({length:2000},()=>M.mean(M.sampleWithRep(pop,n))); }
+  frame();
+}
+
+/* ----------------------------- INIT --------------------------------- */
+renderCatalog();
+heroAnim();
+route();
+window.addEventListener('resize',()=>{ if(viewEl.style.display==='block'){ const id=location.hash.slice(2); openApplet(decodeURIComponent(id)); } });
+</script>
+</body>
+</html>
