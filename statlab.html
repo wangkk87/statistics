@@ -1946,12 +1946,9 @@ function showHome(){ viewEl.style.display='none'; homeEl.style.display='block'; 
 function goApplet(id){ location.hash='/'+id; }
 
 // Dark mode
-let _dark = localStorage.getItem('sl-dark')==='1';
-function applyDark(d){ document.documentElement.style.setProperty('color-scheme', d?'dark':'light'); document.body.classList.toggle('dark-override',d);
-  document.getElementById('darkIcon').setAttribute('d', d ? 'M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M17.657 17.657l-.707-.707M6.343 6.343l-.707-.707M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z' : 'M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z'); }
-function toggleDark(){ _dark=!_dark; localStorage.setItem('sl-dark',_dark?'1':'0'); applyDark(_dark); }
+let _dark = false; // always start in light mode; user can toggle
 
-// Override dark mode via CSS class (needed since we can't redefine prefers-color-scheme)
+// Dark mode via CSS class
 const darkStyle=document.createElement('style');
 darkStyle.id='dark-override-style';
 document.head.appendChild(darkStyle);
@@ -1974,7 +1971,6 @@ function applyDark(d){
   document.body.classList.toggle('dark-override',d);
 }
 function toggleDark(){ _dark=!_dark; localStorage.setItem('sl-dark',_dark?'1':'0'); applyDark(_dark); }
-applyDark(_dark);
 
 // Share current URL
 function shareApplet(){
