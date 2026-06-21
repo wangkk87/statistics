@@ -255,10 +255,9 @@ canvas{display:block;}
     <div class="wrap row">
       <div>
         <div class="brand-sm">StatLab</div>
-        <div style="margin-top:6px;max-width:52ch;">Free to use, remix, and share. Built with plain HTML, CSS &amp; JavaScript — no build step, no dependencies. Drop <code style="font-family:var(--mono)">index.html</code> into any GitHub Pages repo.</div>
+        <div style="margin-top:6px;max-width:52ch;">Free to use, remix, and share.</div>
       </div>
       <div style="text-align:right;font-family:var(--mono);font-size:.76rem;line-height:1.9;">
-        Inspired by the Rossman/Chance applet collection.<br>
         Replace this footer with your name &amp; course.
       </div>
     </div>
@@ -517,7 +516,9 @@ add({ id:'least-squares', cat:'data', tag:'interactive', title:'Least Squares Re
     const stats=UI.statsBox();
     const res=UI.seg({label:'Residual squares',options:[{label:'Hide',value:0},{label:'Show',value:1}],value:0,onchange:v=>{showRes=!!+v;render();}});
     const clear=UI.buttons([{label:'Clear points',onclick:()=>{pts=[];render();}},{label:'Reset example',onclick:()=>{pts=example.map(p=>[...p]);render();}}]);
-    host.appendChild(UI.appGrid([res,clear,stats,UI.note('The fitted line minimizes the <b>sum of squared residuals</b> — the total area of those squares. Add a point far from the trend to see leverage in action.')],[plot]));
+    
+    const interp=document.createElement('div'); interp.className='note'; interp.style.cssText='margin-top:0;'; interp.innerHTML='Add at least 2 points to see interpretation.';
+    host.appendChild(UI.appGrid([res,clear,stats,UI.note('The fitted line minimizes the <b>sum of squared residuals</b> — the total area of those squares. Add a point far from the trend to see leverage in action.'),interp],[plot]));
     const cv=plot.canvas; const XMIN=0,XMAX=10,YMIN=0,YMAX=10;
     cv.style.cursor='crosshair';
     cv.addEventListener('click',e=>{ const ch=lastChart; if(!ch)return; const rect=cv.getBoundingClientRect();
@@ -534,6 +535,14 @@ add({ id:'least-squares', cat:'data', tag:'interactive', title:'Least Squares Re
         let sse=0; pts.forEach(([x,y])=>sse+=(y-(a+b*x))**2);
         stats.set([{k:'n',v:pts.length},{k:'slope',v:M.round(b,3),accent:1},{k:'intercept',v:M.round(a,3)},{k:'r',v:M.round(r,3),accent:1},{k:'r²',v:M.round(r*r,3)},{k:'SSE',v:M.round(sse,2)}]);
         plot.setTitle(`ŷ = ${M.round(a,2)} ${b>=0?'+':'−'} ${Math.abs(M.round(b,2))}·x`);
+        const slopeDir=b>0?'increases':'decreases';
+        const rStr=Math.abs(r)<0.2?'very weak':Math.abs(r)<0.4?'weak':Math.abs(r)<0.6?'moderate':Math.abs(r)<0.8?'strong':'very strong';
+        const rDir=r>=0?'positive':'negative';
+        interp.innerHTML=`<b>Slope (${M.round(b,3)}):</b> For each 1-unit increase in x, ŷ ${slopeDir} by ${Math.abs(M.round(b,3))} units on average.<br>
+          <b>Intercept (${M.round(a,3)}):</b> When x = 0, the predicted y-value is ${M.round(a,3)} (may be outside the data range).<br>
+          <b>r = ${M.round(r,3)}:</b> There is a <em>${rStr} ${rDir}</em> linear relationship between x and y.<br>
+          <b>r² = ${M.round(r*r,3)}:</b> ${M.round(r*r*100,1)}% of the variation in y is explained by the linear model on x.<br>
+          <b>SSE = ${M.round(sse,2)}:</b> The total squared deviation of data points from the fitted line (lower = better fit).`;
       } else { stats.set([{k:'n',v:pts.length},{k:'note',v:'add ≥2'}]); plot.setTitle('Click to add at least two points'); }
       ch.points(xs,ys,hexA(COL.data,.85),5);
     }
@@ -555,7 +564,8 @@ add({ id:'reeses', cat:'sampling', tag:'simulation', title:"Reese's Pieces — S
       {label:'Draw 100',onclick:()=>{for(let i=0;i<100;i++)one();draw();}},
       {label:'Draw 1000',primary:true,onclick:()=>{for(let i=0;i<1000;i++)one();draw();}},
     ]);
-    host.appendChild(UI.appGrid([piS,nS,ctrl,curve,stats,UI.note('The simulated SD closes in on the theory value √(π(1−π)/n). With small n or π near 0 or 1 the shape stays visibly skewed — that is when the normal model breaks down.')],[plot]));
+    const interpR=document.createElement('div'); interpR.className='note'; interpR.innerHTML='Draw samples to see the interpretation.';
+    host.appendChild(UI.appGrid([piS,nS,ctrl,curve,stats,UI.note('The simulated SD closes in on the theory value √(π(1−π)/n). With small n or π near 0 or 1 the shape stays visibly skewed — that is when the normal model breaks down.'),interpR],[plot]));
     function reset(){ dist=[]; draw(); }
     function one(){ const pi=piS.get()/100,n=nS.get(); dist.push(M.binom(n,pi)/n); }
     function draw(){ const pi=piS.get()/100,n=nS.get(); const ch=plot.chart(); ch.setX(0,1);
@@ -571,6 +581,13 @@ add({ id:'reeses', cat:'sampling', tag:'simulation', title:"Reese's Pieces — S
       if(curve.get()=='1') ch.curve(x=>M.normPdf(x,pi,sdTheory),COL.coral,2.5);
       ch.marker(obsMean,'mean',COL.ink);
       stats.set([{k:'samples',v:total},{k:'mean of p̂',v:M.round(obsMean,3),accent:1},{k:'SD of p̂',v:M.round(obsSD,3),accent:1},{k:'theory SD',v:M.round(sdTheory,3)}]);
+      const pi2=piS.get()/100,n2=nS.get();
+      const lo95=M.round(Math.max(0,pi2-2*sdTheory),3),hi95=M.round(Math.min(1,pi2+2*sdTheory),3);
+      interpR.innerHTML=`<b>Scenario:</b> Imagine a bag of Reese's Pieces where <b>${(pi2*100).toFixed(0)}%</b> of all candies are orange (this is π, the true population proportion).<br>
+        Each time you grab a handful of <b>n = ${n2}</b> candies, you compute p̂ = (orange in your sample)/${n2}.<br>
+        <b>What you're seeing:</b> The histogram shows all your p̂ values so far. On average, p̂ ≈ π = ${pi2.toFixed(2)} — sample proportions are <em>unbiased</em> estimates of the true proportion.<br>
+        <b>Spread (SE = ${M.round(sdTheory,3)}):</b> Most sample proportions fall within ±${M.round(2*sdTheory,3)} of π, roughly between ${lo95} and ${hi95}.<br>
+        <b>Why this matters:</b> Knowing this spread lets us build confidence intervals — if we observe a single p̂, we can say how close it's likely to be to the unknown π.`;
     }
     reset();
   }
@@ -591,7 +608,8 @@ add({ id:'ci-sim', cat:'sampling', tag:'simulation', title:'Confidence Interval 
       {label:'Draw 50',primary:true,onclick:()=>{for(let i=0;i<50;i++)one();draw();}},
       {label:'Reset',onclick:reset},
     ]);
-    host.appendChild(UI.appGrid([levelS,piS,nS,ctrl,stats,UI.note('Over the long run, about <b>(confidence level)%</b> of intervals capture π. Any single interval either does or does not — the confidence is in the <i>procedure</i>, not one result.')],[plot]));
+    const interpCI=document.createElement('div'); interpCI.className='note'; interpCI.innerHTML='Draw intervals to see interpretation.';
+    host.appendChild(UI.appGrid([levelS,piS,nS,ctrl,stats,UI.note('Over the long run, about <b>(confidence level)%</b> of intervals capture π. Any single interval either does or does not — the confidence is in the <i>procedure</i>, not one result.'),interpCI],[plot]));
     function reset(){ intervals=[]; captured=0; total=0; draw(); }
     function one(){ const pi=piS.get()/100,n=nS.get(),z=M.normInv(1-(1-levelS.get()/100)/2);
       const phat=M.binom(n,pi)/n; const se=Math.sqrt(phat*(1-phat)/n)||0.001; const lo=phat-z*se,hi=phat+z*se;
@@ -604,6 +622,12 @@ add({ id:'ci-sim', cat:'sampling', tag:'simulation', title:'Confidence Interval 
         ctx.fillStyle=iv.ok?COL.sampling:COL.coral; ctx.beginPath(); ctx.arc(ch.X(iv.phat),y,2.6,0,7); ctx.fill(); });
       ctx.fillStyle=COL.ink; ctx.font='bold 10px "JetBrains Mono",monospace'; ctx.textAlign='center'; ctx.fillText('π='+pi.toFixed(2),ch.X(pi),ch.py1-2);
       stats.set([{k:'intervals',v:total},{k:'captured',v:captured,accent:1},{k:'capture rate',v:(total? (100*captured/total).toFixed(1):'0')+'%',accent:1},{k:'target',v:levelS.get()+'%'}]);
+      const piCI=piS.get()/100,lvl=levelS.get(),nCI=nS.get();
+      const missCount=total-captured;
+      interpCI.innerHTML=`<b>Scenario:</b> The true proportion is π = ${piCI.toFixed(2)} (the vertical black line). This is the <em>unknown</em> parameter we're trying to estimate in practice.<br>
+        Each horizontal line is a ${lvl}% confidence interval built from a random sample of n = ${nCI}. <span style="color:#0D9488"><b>Teal lines capture π</b></span>; <span style="color:#F43F5E"><b>red lines miss it</b></span>.<br>
+        <b>Why do we "capture π"?</b> Because π is fixed but unknown — the interval is what varies from sample to sample. We want our procedure to bracket the true value most of the time.<br>
+        ${total>0?`<b>So far:</b> ${captured} of ${total} intervals (${(100*captured/total).toFixed(1)}%) contain π. In the long run this should converge to ${lvl}%. ${missCount>0?`The ${missCount} red interval${missCount>1?'s':''} — that's the ${(100-lvl)}% of the time the method "fails."`:''}`:'Draw some intervals to see the coverage in action.'}`;
     }
     reset();
   }
@@ -832,6 +856,682 @@ add({ id:'random-babies', cat:'classic', tag:'simulation', title:'Random Babies'
     reset();
   }
 });
+
+/* ===== Probability : Discrete Uniform Calculator ===== */
+add({ id:'discrete-uniform', cat:'prob', tag:'calculator', title:'Discrete Uniform Distribution',
+  blurb:'Each value from a to b is equally likely. Explore probabilities and moments for the discrete uniform distribution.',
+  build(host){
+    const aI=UI.number({label:'Min value (a)',value:1,step:1,onchange:render});
+    const bI=UI.number({label:'Max value (b)',value:6,step:1,onchange:render});
+    const xI=UI.number({label:'Value x (for P(X=x), etc.)',value:3,step:1,onchange:render});
+    const stats=UI.statsBox();
+    const plot=UI.plotCard('Discrete Uniform PMF',260);
+    const momBox=document.createElement('div'); momBox.className='note'; momBox.style.cssText='font-size:.8rem;';
+    host.appendChild(UI.appGrid([aI,bI,xI,stats,momBox],[plot]));
+    function render(){
+      const a=Math.round(aI.get()),b=Math.round(bI.get()),x=Math.round(xI.get());
+      if(b<=a){ stats.set([{k:'error',v:'b must > a'}]); return; }
+      const n=b-a+1;
+      const mean=(a+b)/2;
+      const variance=(n*n-1)/12;
+      const sd=Math.sqrt(variance);
+      const pEq=(x>=a&&x<=b)?1/n:0;
+      const pLeq=(x>=b)?1:(x<a)?0:(x-a+1)/n;
+      const pGt=1-pLeq;
+      const pGeq=(x>b)?0:(x<=a)?1:(b-x+1)/n;
+      stats.set([
+        {k:'Mean',v:M.round(mean,4),accent:1},
+        {k:'Variance',v:M.round(variance,4)},
+        {k:'SD',v:M.round(sd,4)},
+        {k:'P(X=x)',v:M.round(pEq,4),accent:1},
+        {k:'P(X≤x)',v:M.round(pLeq,4)},
+        {k:'P(X>x)',v:M.round(pGt,4)},
+        {k:'P(X≥x)',v:M.round(pGeq,4)},
+      ]);
+      // moments
+      let m1=0,m2=0,m3=0,m4=0;
+      for(let k=a;k<=b;k++){ m1+=k/n; m2+=k*k/n; m3+=k*k*k/n; m4+=k*k*k*k/n; }
+      const mu2=m2-m1*m1;
+      const mu3=m3-3*m2*m1+2*m1*m1*m1;
+      const mu4=m4-4*m3*m1+6*m2*m1*m1-3*Math.pow(m1,4);
+      const skew=mu3/Math.pow(mu2,1.5);
+      const kurt=mu4/(mu2*mu2)-3;
+      momBox.innerHTML=`<b>Moments (about origin):</b><br>
+        1st moment (mean) = ${M.round(m1,3)}: the expected value — the "center of gravity" of the distribution.<br>
+        2nd moment = ${M.round(m2,3)}: average of X² — used to compute variance (Var = 2nd moment − mean²).<br>
+        3rd moment = ${M.round(m3,3)}: captures skewness; standardized → skewness = ${M.round(skew,3)} (${Math.abs(skew)<0.1?'symmetric':'skewed'}).<br>
+        4th moment = ${M.round(m4,3)}: captures tail heaviness; excess kurtosis = ${M.round(kurt,3)} (${kurt>0?'heavier than normal':'lighter than normal'}).`;
+      // plot
+      const vals=[];for(let k=a;k<=b;k++)vals.push(k);
+      const ch=plot.chart();
+      ch.setX(a-1,b+1).setY(0,1.5/n); ch.clear(); ch.grid(); ch.axisX(vals,v=>v);
+      const ctx=ch.ctx; const bw=Math.min((ch.X(b+1)-ch.X(a-1))/n*0.6,24);
+      vals.forEach(k=>{
+        const cx=ch.X(k),cy=ch.Y(1/n);
+        ctx.fillStyle=(k===x)?hexA(COL.prob,.9):hexA(COL.prob,.4);
+        ctx.fillRect(cx-bw/2,cy,bw,ch.py0-cy);
+        ctx.strokeStyle=COL.prob; ctx.lineWidth=1.5; ctx.strokeRect(cx-bw/2,cy,bw,ch.py0-cy);
+      });
+    }
+    render();
+  }
+});
+
+/* ===== Probability : Binomial Distribution Calculator ===== */
+add({ id:'binomial-calc', cat:'prob', tag:'calculator', title:'Binomial Distribution',
+  blurb:'n independent Bernoulli trials each with success probability p. Compute probabilities and visualize the distribution.',
+  build(host){
+    const nI=UI.number({label:'Number of trials (n)',value:20,min:1,max:500,step:1,onchange:render});
+    const pI=UI.number({label:'Success probability (p)',value:0.4,min:0,max:1,step:0.01,onchange:render});
+    const xI=UI.number({label:'Value x',value:8,step:1,onchange:render});
+    const stats=UI.statsBox();
+    const plot=UI.plotCard('Binomial PMF',280);
+    const momBox=document.createElement('div'); momBox.className='note'; momBox.style.cssText='font-size:.8rem;';
+    host.appendChild(UI.appGrid([nI,pI,xI,stats,momBox],[plot]));
+    function binomPMF(n,p,k){ if(k<0||k>n)return 0; return Math.exp(M.gammaln(n+1)-M.gammaln(k+1)-M.gammaln(n-k+1)+k*Math.log(p)+(n-k)*Math.log(1-p)); }
+    function render(){
+      const n=Math.round(Math.max(1,nI.get())),p=M.clamp(pI.get(),1e-9,1-1e-9),x=Math.round(xI.get());
+      const mean=n*p, variance=n*p*(1-p), sd=Math.sqrt(variance);
+      const pEq=binomPMF(n,p,x);
+      let pLeq=0; for(let k=0;k<=Math.min(x,n);k++) pLeq+=binomPMF(n,p,k);
+      const pGt=1-pLeq;
+      let pGeq=0; for(let k=Math.max(0,x);k<=n;k++) pGeq+=binomPMF(n,p,k);
+      stats.set([{k:'Mean',v:M.round(mean,4),accent:1},{k:'Variance',v:M.round(variance,4)},{k:'SD',v:M.round(sd,4)},{k:'P(X=x)',v:M.round(pEq,4),accent:1},{k:'P(X≤x)',v:M.round(pLeq,4)},{k:'P(X>x)',v:M.round(pGt,4)},{k:'P(X≥x)',v:M.round(pGeq,4)}]);
+      const skew=(1-2*p)/sd, kurt=(1-6*p*(1-p))/(n*p*(1-p));
+      momBox.innerHTML=`<b>Key Moments:</b><br>
+        Mean = np = ${M.round(mean,3)}: on average, expect ${M.round(mean,3)} successes out of ${n} trials.<br>
+        Variance = np(1−p) = ${M.round(variance,3)}: spread around the mean. Maximized when p=0.5.<br>
+        Skewness = ${M.round(skew,3)}: ${skew>0.1?'right-skewed (more mass on left)':skew<-0.1?'left-skewed (more mass on right)':'nearly symmetric'}.<br>
+        Excess Kurtosis = ${M.round(kurt,3)}: ${kurt>0?'slightly heavier tails than normal':'slightly lighter tails than normal'}.`;
+      const nb=Math.min(n+1,60);
+      const ch=plot.chart();
+      ch.setX(-0.5,Math.min(n,mean+4*sd)+0.5).setY(0,Math.max(...Array.from({length:n+1},(_,k)=>binomPMF(n,p,k)))*1.3);
+      ch.clear(); ch.grid(); const ctx=ch.ctx;
+      for(let k=0;k<=n;k++){
+        const pmf=binomPMF(n,p,k); if(pmf<1e-8)continue;
+        const cx=ch.X(k),cy=ch.Y(pmf); const bw=Math.max(2,(ch.X(1)-ch.X(0))*0.7);
+        const highlight=(k===x)||(k<=x&&false);
+        ctx.fillStyle=k===x?hexA(COL.prob,.9):(k<=x?hexA(COL.prob,.55):hexA(COL.prob,.35));
+        ctx.fillRect(cx-bw/2,cy,bw,ch.py0-cy);
+        ctx.strokeStyle=COL.prob; ctx.lineWidth=1; ctx.strokeRect(cx-bw/2,cy,bw,ch.py0-cy);
+      }
+    }
+    render();
+  }
+});
+
+/* ===== Probability : Geometric Distribution ===== */
+add({ id:'geometric-calc', cat:'prob', tag:'calculator', title:'Geometric Distribution',
+  blurb:'Number of Bernoulli trials until the first success. P(X=k) = (1−p)^(k−1) · p.',
+  build(host){
+    const pI=UI.number({label:'Success probability (p)',value:0.3,min:0.001,max:1,step:0.01,onchange:render});
+    const xI=UI.number({label:'Value x (trials until success)',value:4,min:1,step:1,onchange:render});
+    const stats=UI.statsBox();
+    const plot=UI.plotCard('Geometric PMF',260);
+    const momBox=document.createElement('div'); momBox.className='note'; momBox.style.cssText='font-size:.8rem;';
+    host.appendChild(UI.appGrid([pI,xI,stats,momBox],[plot]));
+    function render(){
+      const p=M.clamp(pI.get(),1e-9,1),x=Math.max(1,Math.round(xI.get()));
+      const mean=1/p, variance=(1-p)/(p*p), sd=Math.sqrt(variance);
+      const pEq=Math.pow(1-p,x-1)*p;
+      const pLeq=1-Math.pow(1-p,x);
+      const pGt=Math.pow(1-p,x);
+      const pGeq=Math.pow(1-p,x-1);
+      stats.set([{k:'Mean',v:M.round(mean,4),accent:1},{k:'Variance',v:M.round(variance,4)},{k:'SD',v:M.round(sd,4)},{k:'P(X=x)',v:M.round(pEq,4),accent:1},{k:'P(X≤x)',v:M.round(pLeq,4)},{k:'P(X>x)',v:M.round(pGt,4)},{k:'P(X≥x)',v:M.round(pGeq,4)}]);
+      const skew=(2-p)/Math.sqrt(1-p), kurt=6+(p*p)/(1-p);
+      momBox.innerHTML=`<b>Interpretation:</b><br>
+        Mean = 1/p = ${M.round(mean,3)}: on average, you need ${M.round(mean,3)} trials to get the first success.<br>
+        Variance = ${M.round(variance,3)}: larger when p is small (more uncertainty about when success arrives).<br>
+        <b>Memoryless property:</b> If you've already failed k times, the distribution of future wait time is the same as the original — past failures give no information about the future.<br>
+        Skewness = ${M.round(skew,3)}: the distribution is always right-skewed (long right tail).`;
+      const kMax=Math.min(Math.ceil(mean+4*sd),60);
+      const ch=plot.chart();
+      const maxP=p; ch.setX(0.5,kMax+0.5).setY(0,maxP*1.3); ch.clear(); ch.grid();
+      const ctx=ch.ctx; const bw=Math.max(2,(ch.X(2)-ch.X(1))*0.7);
+      for(let k=1;k<=kMax;k++){
+        const pmf=Math.pow(1-p,k-1)*p; const cx=ch.X(k),cy=ch.Y(pmf);
+        ctx.fillStyle=k===x?hexA(COL.prob,.9):hexA(COL.prob,.4);
+        ctx.fillRect(cx-bw/2,cy,bw,ch.py0-cy);
+        ctx.strokeStyle=COL.prob; ctx.lineWidth=1; ctx.strokeRect(cx-bw/2,cy,bw,ch.py0-cy);
+      }
+      ch.axisX(Array.from({length:Math.min(kMax,15)},(_,i)=>i+1),v=>v);
+    }
+    render();
+  }
+});
+
+/* ===== Probability : Negative Binomial Distribution ===== */
+add({ id:'neg-binomial-calc', cat:'prob', tag:'calculator', title:'Negative Binomial Distribution',
+  blurb:'Number of trials until the r-th success. Generalizes the geometric distribution.',
+  build(host){
+    const rI=UI.number({label:'Number of successes (r)',value:3,min:1,step:1,onchange:render});
+    const pI=UI.number({label:'Success probability (p)',value:0.4,min:0.001,max:1,step:0.01,onchange:render});
+    const xI=UI.number({label:'Value x (total trials)',value:8,min:1,step:1,onchange:render});
+    const stats=UI.statsBox();
+    const plot=UI.plotCard('Negative Binomial PMF',260);
+    const momBox=document.createElement('div'); momBox.className='note'; momBox.style.cssText='font-size:.8rem;';
+    host.appendChild(UI.appGrid([rI,pI,xI,stats,momBox],[plot]));
+    function nbPMF(r,p,k){
+      if(k<r)return 0;
+      return Math.exp(M.gammaln(k)-M.gammaln(r)-M.gammaln(k-r+1)+r*Math.log(p)+(k-r)*Math.log(1-p));
+    }
+    function render(){
+      const r=Math.max(1,Math.round(rI.get())),p=M.clamp(pI.get(),1e-9,1),x=Math.max(r,Math.round(xI.get()));
+      const mean=r/p, variance=r*(1-p)/(p*p), sd=Math.sqrt(variance);
+      const pEq=nbPMF(r,p,x);
+      let pLeq=0; for(let k=r;k<=x;k++) pLeq+=nbPMF(r,p,k);
+      const pGt=1-pLeq;
+      let pGeq=pLeq+pEq; if(x>=r) pGeq=1-pLeq+pEq;
+      let pGeqAcc=0; for(let k=x;k<=Math.ceil(mean+8*sd);k++) pGeqAcc+=nbPMF(r,p,k);
+      stats.set([{k:'Mean',v:M.round(mean,4),accent:1},{k:'Variance',v:M.round(variance,4)},{k:'SD',v:M.round(sd,4)},{k:'P(X=x)',v:M.round(pEq,4),accent:1},{k:'P(X≤x)',v:M.round(pLeq,4)},{k:'P(X>x)',v:M.round(pGt,4)},{k:'P(X≥x)',v:M.round(pGeqAcc,4)}]);
+      momBox.innerHTML=`<b>Interpretation:</b><br>
+        Mean = r/p = ${M.round(mean,3)}: expect ${M.round(mean,3)} total trials to get ${r} successes.<br>
+        Variance = r(1−p)/p² = ${M.round(variance,3)}: more overdispersion than Binomial with same p.<br>
+        <b>Compared to Binomial:</b> Binomial fixes n (trials), counts successes. Negative Binomial fixes r (successes), counts trials.<br>
+        When r=1, this reduces to the Geometric distribution.`;
+      const kMax=Math.min(Math.ceil(mean+4*sd),100);
+      const pmfs=Array.from({length:kMax-r+1},(_,i)=>nbPMF(r,p,i+r));
+      const maxP=Math.max(...pmfs);
+      const ch=plot.chart(); ch.setX(r-0.5,kMax+0.5).setY(0,maxP*1.3); ch.clear(); ch.grid();
+      const ctx=ch.ctx; const bw=Math.max(1.5,(ch.X(r+1)-ch.X(r))*0.7);
+      for(let k=r;k<=kMax;k++){
+        const pmf=nbPMF(r,p,k); if(pmf<1e-7)continue;
+        const cx=ch.X(k),cy=ch.Y(pmf);
+        ctx.fillStyle=k===x?hexA(COL.prob,.9):hexA(COL.prob,.4);
+        ctx.fillRect(cx-bw/2,cy,bw,ch.py0-cy);
+        ctx.strokeStyle=COL.prob; ctx.lineWidth=1; ctx.strokeRect(cx-bw/2,cy,bw,ch.py0-cy);
+      }
+    }
+    render();
+  }
+});
+
+/* ===== Probability : Hypergeometric Distribution ===== */
+add({ id:'hypergeometric-calc', cat:'prob', tag:'calculator', title:'Hypergeometric Distribution',
+  blurb:'Draw n items without replacement from a population of N with K successes. How many successes do you get?',
+  build(host){
+    const NI=UI.number({label:'Population size (N)',value:50,min:1,step:1,onchange:render});
+    const KI=UI.number({label:'Success states in population (K)',value:15,min:0,step:1,onchange:render});
+    const nI=UI.number({label:'Draws (n)',value:10,min:1,step:1,onchange:render});
+    const xI=UI.number({label:'Value x (successes in draw)',value:4,min:0,step:1,onchange:render});
+    const stats=UI.statsBox();
+    const plot=UI.plotCard('Hypergeometric PMF',260);
+    const momBox=document.createElement('div'); momBox.className='note'; momBox.style.cssText='font-size:.8rem;';
+    host.appendChild(UI.appGrid([NI,KI,nI,xI,stats,momBox],[plot]));
+    function logC(n,k){ if(k<0||k>n)return -Infinity; return M.gammaln(n+1)-M.gammaln(k+1)-M.gammaln(n-k+1); }
+    function hgPMF(N,K,n,k){
+      if(k<Math.max(0,n+K-N)||k>Math.min(n,K))return 0;
+      return Math.exp(logC(K,k)+logC(N-K,n-k)-logC(N,n));
+    }
+    function render(){
+      const N=Math.max(1,Math.round(NI.get())),K=M.clamp(Math.round(KI.get()),0,N),n=M.clamp(Math.round(nI.get()),1,N),x=Math.round(xI.get());
+      const mean=n*K/N, variance=n*(K/N)*((N-K)/N)*(N-n)/(N-1), sd=Math.sqrt(variance);
+      const pEq=hgPMF(N,K,n,x);
+      const kMin=Math.max(0,n+K-N), kMax2=Math.min(n,K);
+      let pLeq=0; for(let k=kMin;k<=Math.min(x,kMax2);k++) pLeq+=hgPMF(N,K,n,k);
+      const pGt=1-pLeq;
+      let pGeq=0; for(let k=Math.max(kMin,x);k<=kMax2;k++) pGeq+=hgPMF(N,K,n,k);
+      stats.set([{k:'Mean',v:M.round(mean,4),accent:1},{k:'Variance',v:M.round(variance,4)},{k:'SD',v:M.round(sd,4)},{k:'P(X=x)',v:M.round(pEq,4),accent:1},{k:'P(X≤x)',v:M.round(pLeq,4)},{k:'P(X>x)',v:M.round(pGt,4)},{k:'P(X≥x)',v:M.round(pGeq,4)}]);
+      momBox.innerHTML=`<b>Interpretation:</b><br>
+        Mean = nK/N = ${M.round(mean,3)}: expected number of successes in ${n} draws from a population where ${K}/${N} are successes.<br>
+        Variance = ${M.round(variance,3)}: <em>smaller</em> than Binomial(n, K/N) variance by factor (N−n)/(N−1) — drawing without replacement reduces variability.<br>
+        <b>vs. Binomial:</b> If sampling <em>with replacement</em>, this becomes Binomial. The Hypergeometric applies when the population is finite and not replaced.`;
+      const ch=plot.chart();
+      const pmfs=Array.from({length:kMax2-kMin+1},(_,i)=>hgPMF(N,K,n,i+kMin));
+      const maxP=Math.max(...pmfs)||0.1;
+      ch.setX(kMin-0.5,kMax2+0.5).setY(0,maxP*1.3); ch.clear(); ch.grid();
+      const ctx=ch.ctx; const bw=Math.max(2,(ch.X(kMin+1)-ch.X(kMin))*0.7);
+      for(let k=kMin;k<=kMax2;k++){
+        const pmf=hgPMF(N,K,n,k); const cx=ch.X(k),cy=ch.Y(pmf);
+        ctx.fillStyle=k===x?hexA(COL.prob,.9):hexA(COL.prob,.4);
+        ctx.fillRect(cx-bw/2,cy,bw,ch.py0-cy);
+        ctx.strokeStyle=COL.prob; ctx.lineWidth=1; ctx.strokeRect(cx-bw/2,cy,bw,ch.py0-cy);
+      }
+      ch.axisX(Array.from({length:kMax2-kMin+1},(_,i)=>i+kMin),v=>v);
+    }
+    render();
+  }
+});
+
+/* ===== Probability : Poisson Distribution ===== */
+add({ id:'poisson-calc', cat:'prob', tag:'calculator', title:'Poisson Distribution',
+  blurb:'Count of rare events in a fixed interval. P(X=k) = e^{-λ} λ^k / k!',
+  build(host){
+    const lambdaI=UI.number({label:'Rate (λ)',value:4,min:0.01,step:0.1,onchange:render});
+    const xI=UI.number({label:'Value x',value:4,min:0,step:1,onchange:render});
+    const stats=UI.statsBox();
+    const plot=UI.plotCard('Poisson PMF',260);
+    const momBox=document.createElement('div'); momBox.className='note'; momBox.style.cssText='font-size:.8rem;';
+    host.appendChild(UI.appGrid([lambdaI,xI,stats,momBox],[plot]));
+    function poisPMF(lambda,k){ if(k<0)return 0; return Math.exp(-lambda+k*Math.log(lambda)-M.gammaln(k+1)); }
+    function render(){
+      const lambda=Math.max(0.01,lambdaI.get()),x=Math.max(0,Math.round(xI.get()));
+      const mean=lambda, variance=lambda, sd=Math.sqrt(lambda);
+      const pEq=poisPMF(lambda,x);
+      let pLeq=0; for(let k=0;k<=x;k++) pLeq+=poisPMF(lambda,k);
+      const pGt=1-pLeq;
+      let pGeq=0; const kMax0=Math.ceil(lambda+6*sd); for(let k=x;k<=kMax0;k++) pGeq+=poisPMF(lambda,k);
+      stats.set([{k:'Mean',v:M.round(mean,4),accent:1},{k:'Variance',v:M.round(variance,4)},{k:'SD',v:M.round(sd,4)},{k:'P(X=x)',v:M.round(pEq,4),accent:1},{k:'P(X≤x)',v:M.round(pLeq,4)},{k:'P(X>x)',v:M.round(pGt,4)},{k:'P(X≥x)',v:M.round(pGeq,4)}]);
+      const skew=1/Math.sqrt(lambda), kurt=1/lambda;
+      momBox.innerHTML=`<b>Interpretation:</b><br>
+        Mean = Variance = λ = ${M.round(lambda,3)}: a unique property — the mean equals the variance. If variance > mean in data, consider Negative Binomial.<br>
+        Skewness = 1/√λ = ${M.round(skew,3)}: always right-skewed, but approaches symmetric as λ grows.<br>
+        <b>Moments about origin:</b> E[X] = λ, E[X²] = λ²+λ, E[X³] = λ³+3λ²+λ.<br>
+        <b>Approximation:</b> For large n, small p, Binomial(n,p) ≈ Poisson(np).`;
+      const kMax=Math.ceil(lambda+5*sd);
+      const pmfs=Array.from({length:kMax+1},(_,k)=>poisPMF(lambda,k));
+      const maxP=Math.max(...pmfs);
+      const ch=plot.chart(); ch.setX(-0.5,kMax+0.5).setY(0,maxP*1.3); ch.clear(); ch.grid();
+      const ctx=ch.ctx; const bw=Math.max(2,(ch.X(2)-ch.X(1))*0.7);
+      for(let k=0;k<=kMax;k++){
+        const pmf=poisPMF(lambda,k); if(pmf<1e-7)continue;
+        const cx=ch.X(k),cy=ch.Y(pmf);
+        ctx.fillStyle=k===x?hexA(COL.prob,.9):hexA(COL.prob,.4);
+        ctx.fillRect(cx-bw/2,cy,bw,ch.py0-cy);
+        ctx.strokeStyle=COL.prob; ctx.lineWidth=1; ctx.strokeRect(cx-bw/2,cy,bw,ch.py0-cy);
+      }
+    }
+    render();
+  }
+});
+
+/* ===== Probability : Exponential Distribution ===== */
+add({ id:'exponential-calc', cat:'prob', tag:'calculator', title:'Exponential Distribution',
+  blurb:'Time between Poisson events. Continuous, memoryless. f(x) = λe^{-λx}.',
+  build(host){
+    const lambdaI=UI.number({label:'Rate (λ)',value:1,min:0.001,step:0.1,onchange:render});
+    const modeS=UI.seg({label:'Region',options:[{label:'x<',value:'lt'},{label:'x>',value:'gt'},{label:'between',value:'between'}],value:'lt',onchange:render});
+    const aI=UI.number({label:'Lower / cutoff (a)',value:0.5,step:0.1,onchange:render});
+    const bI=UI.number({label:'Upper bound (b)',value:2,step:0.1,onchange:render});
+    const stats=UI.statsBox();
+    const plot=UI.plotCard('Exponential PDF',260);
+    const momBox=document.createElement('div'); momBox.className='note'; momBox.style.cssText='font-size:.8rem;';
+    host.appendChild(UI.appGrid([lambdaI,modeS,aI,bI,stats,momBox],[plot]));
+    function render(){
+      const lambda=Math.max(0.001,lambdaI.get()),a=aI.get(),b=bI.get(),mode=modeS.get();
+      const mean=1/lambda, variance=1/(lambda*lambda), sd=1/lambda;
+      let p=0;
+      if(mode==='lt') p=1-Math.exp(-lambda*Math.max(0,a));
+      else if(mode==='gt') p=Math.exp(-lambda*Math.max(0,a));
+      else { const lo=Math.max(0,Math.min(a,b)),hi=Math.max(a,b); p=Math.exp(-lambda*lo)-Math.exp(-lambda*hi); }
+      stats.set([{k:'Mean',v:M.round(mean,4),accent:1},{k:'Variance',v:M.round(variance,4)},{k:'SD',v:M.round(sd,4)},{k:'P',v:M.round(p,4),accent:1},{k:'Median',v:M.round(Math.log(2)/lambda,4)}]);
+      momBox.innerHTML=`<b>Moments:</b><br>
+        1st moment (mean) = 1/λ = ${M.round(mean,3)}: average waiting time between events.<br>
+        2nd moment = 2/λ² = ${M.round(2/lambda/lambda,3)}; Variance = 1/λ² = ${M.round(variance,3)}.<br>
+        3rd moment = 6/λ³; Skewness = 2 (always right-skewed — always longer waits than expected are possible).<br>
+        4th moment = 24/λ⁴; Excess Kurtosis = 6 (heavier right tail than normal).<br>
+        <b>Memoryless:</b> P(X > s+t | X > s) = P(X > t). Past waiting time doesn't affect future.`;
+      const xMax=mean+5*sd;
+      const pdf=x=>x>=0?lambda*Math.exp(-lambda*x):0;
+      const ch=plot.chart(); ch.setX(0,xMax).setY(0,lambda*1.2); ch.clear(); ch.grid(); ch.axisX(niceTicks(0,xMax,6));
+      if(mode==='lt'){ const sa=0,sb=Math.max(0,a); ch.shade(pdf,sa,sb,hexA(COL.prob,.3)); }
+      else if(mode==='gt'){ ch.shade(pdf,Math.max(0,a),xMax,hexA(COL.prob,.3)); }
+      else { const lo=Math.max(0,Math.min(a,b)),hi=Math.max(a,b); ch.shade(pdf,lo,hi,hexA(COL.prob,.3)); }
+      ch.curve(pdf,COL.prob,2.5);
+    }
+    render();
+  }
+});
+
+/* ===== Probability : Gamma / Erlang Distribution ===== */
+add({ id:'gamma-calc', cat:'prob', tag:'calculator', title:'Gamma & Erlang Distribution',
+  blurb:'Sum of k independent Exponential(λ) random variables. Integer k gives Erlang; real k gives Gamma.',
+  build(host){
+    const kI=UI.number({label:'Shape (k / α)',value:3,min:0.1,step:0.1,onchange:render});
+    const lambdaI=UI.number({label:'Rate (λ / β)',value:1,min:0.001,step:0.1,onchange:render});
+    const modeS=UI.seg({label:'Region',options:[{label:'x<',value:'lt'},{label:'x>',value:'gt'},{label:'between',value:'between'}],value:'between',onchange:render});
+    const aI=UI.number({label:'Lower (a)',value:1,step:0.1,onchange:render});
+    const bI=UI.number({label:'Upper (b)',value:5,step:0.1,onchange:render});
+    const stats=UI.statsBox();
+    const plot=UI.plotCard('Gamma PDF',260);
+    const momBox=document.createElement('div'); momBox.className='note'; momBox.style.cssText='font-size:.8rem;';
+    host.appendChild(UI.appGrid([kI,lambdaI,modeS,aI,bI,stats,momBox],[plot]));
+    function gammaPDF(x,k,lambda){ if(x<=0)return 0; return Math.exp((k-1)*Math.log(x)-lambda*x+k*Math.log(lambda)-M.gammaln(k)); }
+    // Regularized incomplete gamma using series (for CDF)
+    function gammaIncReg(a,x){ if(x<=0)return 0; if(x>a+50)return 1;
+      let sum=0,term=1; for(let n=0;n<300;n++){ term*=x/(a+n); sum+=term; if(term<1e-12)break; }
+      return Math.exp(-x+a*Math.log(x)-M.gammaln(a))*sum/a; }
+    function gammaCDF(x,k,lambda){ if(x<=0)return 0; return Math.min(1,gammaIncReg(k,lambda*x)); }
+    function render(){
+      const k=Math.max(0.1,kI.get()),lambda=Math.max(0.001,lambdaI.get()),mode=modeS.get();
+      const a=aI.get(),b=bI.get();
+      const mean=k/lambda, variance=k/(lambda*lambda), sd=Math.sqrt(variance);
+      const mode_=k>=1?(k-1)/lambda:0;
+      let p=0;
+      if(mode==='lt') p=gammaCDF(a,k,lambda);
+      else if(mode==='gt') p=1-gammaCDF(a,k,lambda);
+      else { const lo=Math.min(a,b),hi=Math.max(a,b); p=gammaCDF(hi,k,lambda)-gammaCDF(lo,k,lambda); }
+      stats.set([{k:'Mean',v:M.round(mean,4),accent:1},{k:'Variance',v:M.round(variance,4)},{k:'SD',v:M.round(sd,4)},{k:'Mode',v:k>=1?M.round(mode_,4):'0 (unbounded)',accent:0},{k:'P',v:M.round(p,4),accent:1}]);
+      const skew=2/Math.sqrt(k), kurt=6/k;
+      momBox.innerHTML=`<b>Moments:</b><br>
+        1st moment (mean) = k/λ = ${M.round(mean,3)}: total expected waiting time for k events each arriving at rate λ.<br>
+        2nd moment = k(k+1)/λ²; Variance = k/λ² = ${M.round(variance,3)}.<br>
+        Skewness = 2/√k = ${M.round(skew,3)}: always right-skewed; approaches symmetric as k → ∞.<br>
+        Excess Kurtosis = 6/k = ${M.round(kurt,3)}.<br>
+        <b>Erlang:</b> When k is a positive integer, Gamma(k,λ) = Erlang(k,λ) = sum of k independent Exp(λ) r.v.'s.<br>
+        <b>Special cases:</b> k=1 → Exponential; k=n/2, λ=1/2 → Chi-squared(n).`;
+      const xMax=mean+4*sd+0.5;
+      const pdf=x=>gammaPDF(x,k,lambda);
+      const ch=plot.chart(); ch.setX(0,xMax).setY(0,pdf(mode_>0?mode_:mean)*1.3); ch.clear(); ch.grid(); ch.axisX(niceTicks(0,xMax,6));
+      if(mode==='lt'){ ch.shade(pdf,0,a,hexA(COL.prob,.3)); }
+      else if(mode==='gt'){ ch.shade(pdf,a,xMax,hexA(COL.prob,.3)); }
+      else { const lo=Math.min(a,b),hi=Math.max(a,b); ch.shade(pdf,lo,hi,hexA(COL.prob,.3)); }
+      ch.curve(pdf,COL.prob,2.5);
+    }
+    render();
+  }
+});
+
+/* ===== Multiple Variables : Joint PDF Visualizer ===== */
+add({ id:'joint-pdf', cat:'multi', tag:'interactive', title:'Joint Probability Density — Visualizer',
+  blurb:'Enter a joint PDF f(x,y), define bounds, and compute P(X<a, Y≥b) or any rectangular event. The density is shaded on the plot.',
+  build(host){
+    const fTA=UI.textarea({label:'f(x,y) =',value:'(1/4)*x*y',hint:'Use x, y. Must integrate to 1 over the region. E.g. (1/4)*x*y, 6*x*y^2',onchange:()=>{}});
+    const xloI=UI.number({label:'x lower bound',value:0,step:0.1,onchange:()=>{}});
+    const xhiI=UI.number({label:'x upper bound',value:2,step:0.1,onchange:()=>{}});
+    const yloI=UI.number({label:'y lower bound',value:0,step:0.1,onchange:()=>{}});
+    const yhiI=UI.number({label:'y upper bound',value:2,step:0.1,onchange:()=>{}});
+    const eventTA=UI.textarea({label:'Event (optional)',value:'x < 1 && y >= 1',hint:'E.g. x < 1 && y >= 1. Uses the same x, y variables.',onchange:()=>{}});
+    const errBox=document.createElement('div'); errBox.className='note'; errBox.style.cssText='color:#E11D48;display:none;';
+    const stats=UI.statsBox();
+    const plot=UI.plotCard('Joint PDF f(x,y) — top view (color = density)',300);
+    const ctrl=UI.buttons([{label:'Compute & Plot',primary:true,onclick:compute},{label:'Example: f=(1/4)xy',onclick:()=>{fTA.set('(1/4)*x*y');xloI.set(0);xhiI.set(2);yloI.set(0);yhiI.set(2);eventTA.set('x < 1 && y >= 1');compute();}},{label:'Example: f=6xy²',onclick:()=>{fTA.set('6*x*y*y');xloI.set(0);xhiI.set(1);yloI.set(0);yhiI.set(1);eventTA.set('x > 0.5 && y < 0.5');compute();}}]);
+    const interp=document.createElement('div'); interp.className='note'; interp.style.cssText='font-size:.8rem;';
+    host.appendChild(UI.appGrid([fTA,xloI,xhiI,yloI,yhiI,eventTA,ctrl,errBox,interp],[stats,plot]));
+    function safeF(expr,x,y){ try{ return Function('x','y',`"use strict";return (${expr})`)(x,y); }catch(e){ return NaN; } }
+    function compute(){
+      errBox.style.display='none';
+      const fExpr=fTA.get().trim();
+      const xl=xloI.get(),xh=xhiI.get(),yl=yloI.get(),yh=yhiI.get();
+      if(xh<=xl){ errBox.textContent='Error: x upper bound must be greater than x lower bound.'; errBox.style.display=''; return; }
+      if(yh<=yl){ errBox.textContent='Error: y upper bound must be greater than y lower bound.'; errBox.style.display=''; return; }
+      // numerical integration (2D Simpson's rule-like)
+      const N=80;
+      const dx=(xh-xl)/N, dy=(yh-yl)/N;
+      let totalVol=0, eventVol=0;
+      const eventExpr=eventTA.get().trim();
+      // compute grid values
+      const grid=[];
+      let maxVal=0;
+      for(let i=0;i<=N;i++){
+        const row=[];
+        for(let j=0;j<=N;j++){
+          const x=xl+i*dx, y=yl+j*dy;
+          const v=safeF(fExpr,x,y);
+          if(isNaN(v)||!isFinite(v)){ errBox.textContent='Error: f(x,y) returned NaN or Infinity. Check your expression.'; errBox.style.display=''; return; }
+          if(v<0){ errBox.textContent='Warning: f(x,y) < 0 at some points — not a valid PDF!'; errBox.style.display=''; }
+          row.push(v); if(v>maxVal)maxVal=v;
+        }
+        grid.push(row);
+      }
+      // integrate total and event
+      for(let i=0;i<N;i++){
+        for(let j=0;j<N;j++){
+          const v=0.25*(grid[i][j]+grid[i+1][j]+grid[i][j+1]+grid[i+1][j+1]);
+          totalVol+=v*dx*dy;
+          if(eventExpr){
+            const x=xl+(i+0.5)*dx, y=yl+(j+0.5)*dy;
+            let inEvent=false;
+            try{ inEvent=Function('x','y',`"use strict";return !!(${eventExpr})`)(x,y); }catch(e){}
+            if(inEvent) eventVol+=v*dx*dy;
+          }
+        }
+      }
+      if(Math.abs(totalVol-1)>0.05){
+        errBox.textContent=`Warning: ∫∫f(x,y)dxdy ≈ ${M.round(totalVol,4)} over the given region (should be 1 for a valid PDF). Results may be unreliable.`;
+        errBox.style.display='';
+      }
+      const EX=(()=>{ let s=0; for(let i=0;i<N;i++) for(let j=0;j<N;j++){ const x=xl+(i+0.5)*dx,y=yl+(j+0.5)*dy; s+=x*safeF(fExpr,x,y)*dx*dy; } return s; })();
+      const EY=(()=>{ let s=0; for(let i=0;i<N;i++) for(let j=0;j<N;j++){ const x=xl+(i+0.5)*dx,y=yl+(j+0.5)*dy; s+=y*safeF(fExpr,x,y)*dx*dy; } return s; })();
+      const EX2=(()=>{ let s=0; for(let i=0;i<N;i++) for(let j=0;j<N;j++){ const x=xl+(i+0.5)*dx,y=yl+(j+0.5)*dy; s+=x*x*safeF(fExpr,x,y)*dx*dy; } return s; })();
+      const EY2=(()=>{ let s=0; for(let i=0;i<N;i++) for(let j=0;j<N;j++){ const x=xl+(i+0.5)*dx,y=yl+(j+0.5)*dy; s+=y*y*safeF(fExpr,x,y)*dx*dy; } return s; })();
+      const EXY=(()=>{ let s=0; for(let i=0;i<N;i++) for(let j=0;j<N;j++){ const x=xl+(i+0.5)*dx,y=yl+(j+0.5)*dy; s+=x*y*safeF(fExpr,x,y)*dx*dy; } return s; })();
+      const varX=EX2-EX*EX, varY=EY2-EY*EY, cov=EXY-EX*EY;
+      const corrXY=(varX>0&&varY>0)?cov/Math.sqrt(varX*varY):0;
+      const statArr=[{k:'∫∫f dxdy',v:M.round(totalVol,4)},{k:'E[X]',v:M.round(EX,4),accent:1},{k:'E[Y]',v:M.round(EY,4),accent:1},{k:'Var(X)',v:M.round(varX,4)},{k:'Var(Y)',v:M.round(varY,4)},{k:'Cov(X,Y)',v:M.round(cov,4)},{k:'Corr(X,Y)',v:M.round(corrXY,4)}];
+      if(eventExpr) statArr.push({k:'P(event)',v:M.round(eventVol,4),accent:1});
+      stats.set(statArr);
+      interp.innerHTML=`<b>E[X] = ${M.round(EX,3)}:</b> average x-value weighted by the joint density.<br>
+        <b>E[Y] = ${M.round(EY,3)}:</b> average y-value weighted by the joint density.<br>
+        <b>Cov(X,Y) = ${M.round(cov,4)}:</b> ${cov>0.001?'positive — X and Y tend to increase together':cov<-0.001?'negative — when X increases, Y tends to decrease':'≈ 0 — X and Y appear uncorrelated'}.<br>
+        <b>Corr = ${M.round(corrXY,3)}:</b> ${Math.abs(corrXY)<0.1?'negligible':'notable'} linear dependence between X and Y.<br>
+        ${eventExpr?`<b>P(event) = ${M.round(eventVol,4)}:</b> probability that the event [${eventExpr}] occurs.`:''}`;
+      // Draw heatmap on canvas
+      const ch=plot.chart(); const ctx=ch.ctx;
+      ch.setX(xl,xh).setY(yl,yh); ch.clear();
+      const imgData=ctx.createImageData(Math.round(ch.px1-ch.px0),Math.round(ch.py0-ch.py1));
+      const W2=Math.round(ch.px1-ch.px0), H2=Math.round(ch.py0-ch.py1);
+      let eventExprOk=true;
+      for(let pi=0;pi<W2;pi++){
+        for(let pj=0;pj<H2;pj++){
+          const x=xl+pi/W2*(xh-xl), y=yh-pj/H2*(yh-yl);
+          const v=safeF(fExpr,x,y);
+          const t=Math.min(1,Math.max(0,v/maxVal));
+          let inEv=false;
+          if(eventExpr && eventExprOk){ try{ inEv=Function('x','y',`"use strict";return !!(${eventExpr})`)(x,y); }catch(e){ eventExprOk=false; } }
+          // color: orange-to-white for density, blue tint for event
+          const idx=(pj*W2+pi)*4;
+          if(inEv){
+            imgData.data[idx]=Math.round(79+t*(255-79));
+            imgData.data[idx+1]=Math.round(70+t*(255-70));
+            imgData.data[idx+2]=Math.round(229);
+            imgData.data[idx+3]=200;
+          } else {
+            imgData.data[idx]=Math.round(234+(255-234)*(1-t));
+            imgData.data[idx+1]=Math.round(88+(255-88)*(1-t));
+            imgData.data[idx+2]=Math.round(12+(255-12)*(1-t));
+            imgData.data[idx+3]=Math.round(240*t+30);
+          }
+        }
+      }
+      ctx.putImageData(imgData,Math.round(ch.px0),Math.round(ch.py1));
+      ch.grid(); ch.axisX(niceTicks(xl,xh,5)); ch.axisY(niceTicks(yl,yh,5));
+      // draw event boundaries if event has x/y thresholds
+    }
+    compute();
+  }
+});
+
+/* ===== Multiple Variables : Linear Combinations & CLT ===== */
+add({ id:'linear-comb', cat:'multi', tag:'simulation', title:'Linear Combinations & Central Limit Theorem',
+  blurb:'Add n i.i.d. random variables from different distributions. Watch the sum/average converge to normal as n grows — the CLT in action.',
+  build(host){
+    let dist='uniform', means=[];
+    const distSel=UI.select({label:'Base distribution (i.i.d.)',options:[
+      {label:'Uniform(0,1)',value:'uniform'},{label:'Exponential(1)',value:'exp'},
+      {label:'Bernoulli(0.5)',value:'bern'},{label:'Discrete {1,2,3,4,5,6}',value:'die'},
+      {label:'Beta(0.2, 0.2) — U-shaped',value:'beta'}
+    ],value:'uniform',onchange:v=>{dist=v;reset();}});
+    const nS=UI.slider({label:'n (variables to sum)',min:1,max:50,value:1,fmt:v=>v,oninput:v=>{reset();}});
+    const useAvg=UI.seg({label:'Show',options:[{label:'Sum Sₙ',value:'sum'},{label:'Average X̄ₙ',value:'avg'}],value:'avg',onchange:()=>draw()});
+    const ctrl=UI.buttons([{label:'Simulate 2000',primary:true,onclick:()=>simulate(2000)},{label:'Reset',onclick:reset}]);
+    const normalSeg=UI.seg({label:'Normal overlay',options:[{label:'Off',value:0},{label:'On',value:1}],value:1,onchange:()=>draw()});
+    const stats=UI.statsBox();
+    const plot=UI.plotCard('Distribution of statistic (2000 simulations)',280);
+    const interp=document.createElement('div'); interp.className='note'; interp.style.cssText='font-size:.8rem;';
+    host.appendChild(UI.appGrid([distSel,nS,useAvg,normalSeg,ctrl,stats,interp],[plot]));
+    function oneRV(){
+      switch(dist){
+        case 'uniform': return Math.random();
+        case 'exp': return -Math.log(1-Math.random());
+        case 'bern': return Math.random()<0.5?0:1;
+        case 'die': return Math.floor(Math.random()*6)+1;
+        case 'beta': { const a=0.2,b=0.2; // use rejection or approx
+          const u=Math.pow(Math.random(),1/a), v=Math.pow(Math.random(),1/b);
+          return u/(u+v); }
+      }
+    }
+    function distMoments(){ switch(dist){
+      case 'uniform': return {mu:0.5,sigma2:1/12};
+      case 'exp': return {mu:1,sigma2:1};
+      case 'bern': return {mu:0.5,sigma2:0.25};
+      case 'die': return {mu:3.5,sigma2:35/12};
+      case 'beta': return {mu:0.5,sigma2:0.2*0.2/(0.4*0.4*1.4)};
+    }}
+    function simulate(k){ const n=nS.get(); for(let i=0;i<k;i++){ let s=0; for(let j=0;j<n;j++) s+=oneRV(); means.push(s); } draw(); }
+    function reset(){ means=[]; draw(); }
+    function draw(){
+      const n=nS.get(); const {mu,sigma2}=distMoments(); const isAvg=useAvg.get()==='avg';
+      const theoryMu=isAvg?mu:n*mu;
+      const theorySigma=isAvg?Math.sqrt(sigma2/n):Math.sqrt(n*sigma2);
+      const vals=isAvg?means.map(s=>s/n):means;
+      const ch=plot.chart();
+      if(!vals.length){ ch.setX(theoryMu-4*theorySigma,theoryMu+4*theorySigma).setY(0,1); ch.clear(); ch.grid(); ch.curve(x=>M.normPdf(x,theoryMu,theorySigma),COL.coral,2,[4,3]); ch.axisX(niceTicks(theoryMu-4*theorySigma,theoryMu+4*theorySigma,6));
+        stats.set([{k:'simulations',v:0},{k:'theory μ',v:M.round(theoryMu,3)},{k:'theory σ',v:M.round(theorySigma,3)}]);
+        interp.innerHTML='Click <b>Simulate 2000</b> and increase n to see CLT in action.'; return; }
+      const lo=M.min(vals),hi=M.max(vals),pad=(hi-lo)*0.08||0.5;
+      const nb=Math.min(40,Math.max(10,Math.round(Math.sqrt(vals.length))));
+      const hb=histogram(vals,nb,lo-pad,hi+pad); const total=vals.length; const bw=hb[0].hi-hb[0].lo;
+      const props=hb.map(b=>b.count/total/bw);
+      const maxD=Math.max(...props,M.normPdf(theoryMu,theoryMu,theorySigma));
+      ch.setX(lo-pad,hi+pad).setY(0,maxD*1.18); ch.clear();
+      ch.bars(hb.map((b,i)=>({lo:b.lo,hi:b.hi,count:props[i]})),hexA(COL.multi,.7)); ch.grid(); ch.axisX(niceTicks(lo-pad,hi+pad,6));
+      if(normalSeg.get()==='1') ch.curve(x=>M.normPdf(x,theoryMu,theorySigma),COL.coral,2.5);
+      const obsMu=M.mean(vals),obsSd=M.sd(vals);
+      stats.set([{k:'simulations',v:vals.length},{k:'observed μ',v:M.round(obsMu,3),accent:1},{k:'observed σ',v:M.round(obsSd,3),accent:1},{k:'theory μ',v:M.round(theoryMu,3)},{k:'theory σ',v:M.round(theorySigma,3)}]);
+      interp.innerHTML=`<b>Central Limit Theorem (CLT):</b><br>
+        You're summing <b>n = ${n}</b> i.i.d. draws from a <em>${distSel.querySelector?'selected':dist}</em> distribution.<br>
+        <b>CLT says:</b> As n → ∞, the ${isAvg?'average X̄ₙ':'sum Sₙ'} is approximately Normal with μ = ${M.round(theoryMu,3)} and σ = ${M.round(theorySigma,3)}.<br>
+        ${n<5?'<b>n is small</b> — the distribution may still look like the original.':n<20?'<b>n is moderate</b> — the normal approximation is improving.':'<b>n is large</b> — the histogram should closely match the red normal curve.'}<br>
+        The red curve is the theoretical Normal — see how well it fits!`;
+    }
+    reset();
+  }
+});
+
+/* ===== Classics : CLT Multi-Distribution Demo ===== */
+add({ id:'clt-demo', cat:'classic', tag:'simulation', title:'Central Limit Theorem — Live Demo',
+  blurb:'Choose one or more source distributions, pick a sample size, and watch the sampling distribution of the mean become normal as n grows.',
+  build(host){
+    const distSel=UI.select({label:'Source distribution',options:[
+      {label:'Uniform(0,1)',value:'uniform'},{label:'Exponential(1)',value:'exp'},
+      {label:'Bernoulli(0.3)',value:'bern'},{label:'Bimodal mixture',value:'bimodal'},
+      {label:'Very right-skewed (log-normal)',value:'lognorm'},
+      {label:'Discrete die {1…6}',value:'die'},
+    ],value:'exp',onchange:reset});
+    const nS=UI.slider({label:'Sample size (n)',min:1,max:100,value:5,fmt:v=>v,oninput:reset});
+    const ctrl=UI.buttons([{label:'Draw 200',onclick:()=>simulate(200)},{label:'Draw 2000',primary:true,onclick:()=>simulate(2000)},{label:'Reset',onclick:reset}]);
+    const normSeg=UI.seg({label:'Normal overlay',options:[{label:'Off',value:0},{label:'On',value:1}],value:1,onchange:()=>draw()});
+    const stats=UI.statsBox();
+    const plotPop=UI.plotCard('Population distribution',160);
+    const plotSamp=UI.plotCard('Sampling distribution of X̄',220);
+    const interp=document.createElement('div'); interp.className='note'; interp.style.cssText='font-size:.8rem;';
+    host.appendChild(UI.appGrid([distSel,nS,normSeg,ctrl,stats,interp],[plotPop,plotSamp]));
+    let means=[], popSample=[];
+    function oneRV(d){ switch(d){
+      case 'uniform': return Math.random();
+      case 'exp': return -Math.log(1-Math.random());
+      case 'bern': return Math.random()<0.3?1:0;
+      case 'bimodal': return Math.random()<0.5? M.normal(2,0.4): M.normal(7,0.4);
+      case 'lognorm': return Math.exp(M.normal(0,1));
+      case 'die': return Math.floor(Math.random()*6)+1;
+    }}
+    function distInfo(d){ switch(d){
+      case 'uniform': return {mu:0.5,sigma2:1/12,lo:0,hi:1};
+      case 'exp': return {mu:1,sigma2:1,lo:0,hi:5};
+      case 'bern': return {mu:0.3,sigma2:0.21,lo:0,hi:1};
+      case 'bimodal': return {mu:4.5,sigma2:7,lo:-0.5,hi:10};
+      case 'lognorm': return {mu:Math.exp(0.5),sigma2:(Math.exp(1)-1)*Math.exp(1),lo:0,hi:8};
+      case 'die': return {mu:3.5,sigma2:35/12,lo:0.5,hi:6.5};
+    }}
+    function reset(){ means=[]; popSample=Array.from({length:2000},()=>oneRV(distSel.get())); drawPop(); draw(); }
+    function simulate(k){ const n=nS.get(), d=distSel.get(); for(let i=0;i<k;i++) means.push(M.mean(Array.from({length:n},()=>oneRV(d)))); draw(); }
+    function drawPop(){
+      const d=distSel.get(); const info=distInfo(d);
+      const ch=plotPop.chart(); const nb=25;
+      const hb=histogram(popSample,nb,info.lo,info.hi); const maxc=Math.max(...hb.map(b=>b.count));
+      ch.setX(info.lo,info.hi).setY(0,maxc*1.2); ch.clear(); ch.bars(hb,hexA(COL.classic,.75)); ch.grid(); ch.axisX(niceTicks(info.lo,info.hi,5));
+    }
+    function draw(){
+      const d=distSel.get(), n=nS.get(), info=distInfo(d);
+      const theoryMu=info.mu, theorySigma=Math.sqrt(info.sigma2/n);
+      const ch=plotSamp.chart();
+      if(!means.length){ ch.setX(theoryMu-4.5*theorySigma,theoryMu+4.5*theorySigma).setY(0,M.normPdf(theoryMu,theoryMu,theorySigma)*1.3); ch.clear(); ch.grid(); ch.curve(x=>M.normPdf(x,theoryMu,theorySigma),COL.coral,2,[4,3]); ch.axisX(niceTicks(theoryMu-4*theorySigma,theoryMu+4*theorySigma,6));
+        stats.set([{k:'samples',v:0},{k:'theory μ',v:M.round(theoryMu,3)},{k:'theory σ/√n',v:M.round(theorySigma,3)}]);
+        interp.innerHTML='Draw samples and increase n to see the CLT at work.'; return; }
+      const lo=M.min(means),hi=M.max(means),pad=(hi-lo)*0.08||0.2;
+      const nb=Math.min(40,Math.max(10,Math.round(Math.sqrt(means.length))));
+      const hb=histogram(means,nb,lo-pad,hi+pad); const bw=hb[0].hi-hb[0].lo; const total=means.length;
+      const props=hb.map(b=>b.count/total/bw);
+      const maxD=Math.max(...props,M.normPdf(theoryMu,theoryMu,theorySigma));
+      ch.setX(lo-pad,hi+pad).setY(0,maxD*1.2); ch.clear();
+      ch.bars(hb.map((b,i)=>({lo:b.lo,hi:b.hi,count:props[i]})),hexA(COL.classic,.75)); ch.grid(); ch.axisX(niceTicks(lo-pad,hi+pad,6));
+      if(normSeg.get()==='1') ch.curve(x=>M.normPdf(x,theoryMu,theorySigma),COL.coral,2.5);
+      const obsMu=M.mean(means),obsSd=M.sd(means);
+      stats.set([{k:'samples',v:total},{k:'obs mean of X̄',v:M.round(obsMu,3),accent:1},{k:'obs SD of X̄',v:M.round(obsSd,3),accent:1},{k:'theory μ',v:M.round(theoryMu,3)},{k:'theory σ/√n',v:M.round(theorySigma,3)}]);
+      const shapeFit=Math.abs(obsMu-theoryMu)<0.1*theorySigma+0.1&&Math.abs(obsSd-theorySigma)<0.2*theorySigma+0.1;
+      interp.innerHTML=`<b>Top:</b> the original (non-normal) population. <b>Bottom:</b> distribution of ${total} sample means, each from n=${n} observations.<br>
+        CLT prediction: X̄ ~ Normal(μ=${M.round(theoryMu,3)}, σ/√n=${M.round(theorySigma,3)}). ${n>=30?'With n ≥ 30 the approximation is usually excellent.':n>=10?'n is moderate — the approximation is improving.':'n is small — the shape may still reflect the original distribution.'}<br>
+        ${shapeFit?'✓ Observed mean and SD match theory well.':'The simulation is still converging — try more samples.'}`;
+    }
+    reset();
+  }
+});
+
+/* ===== Classics : One-Way ANOVA Simulation ===== */
+add({ id:'anova-sim', cat:'classic', tag:'simulation', title:'One-Way ANOVA Simulation',
+  blurb:'Simulate data under user-defined group parameters, run a one-way ANOVA F-test, visualize the group distributions, and interpret the results.',
+  build(host){
+    const nG=UI.slider({label:'Number of groups',min:2,max:5,value:3,fmt:v=>v,oninput:()=>{buildGroupInputs();run();}});
+    const nS=UI.slider({label:'n per group',min:5,max:100,value:20,fmt:v=>v,oninput:run});
+    const groupDiv=document.createElement('div'); groupDiv.className='ctrl';
+    groupDiv.innerHTML='<label>Group means (μ₁, μ₂, …)</label>';
+    const meansIn=document.createElement('input'); meansIn.type='text'; meansIn.value='50, 55, 50'; meansIn.style.fontFamily='var(--mono)'; meansIn.style.padding='8px'; meansIn.style.borderRadius='6px'; meansIn.style.border='1px solid var(--line)'; meansIn.style.width='100%';
+    groupDiv.appendChild(meansIn);
+    const sdDiv=document.createElement('div'); sdDiv.className='ctrl';
+    sdDiv.innerHTML='<label>Common SD (σ)</label>';
+    const sdIn=document.createElement('input'); sdIn.type='number'; sdIn.value='10'; sdIn.min='0.1'; sdIn.style.fontFamily='var(--mono)'; sdIn.style.padding='8px'; sdIn.style.borderRadius='6px'; sdIn.style.border='1px solid var(--line)'; sdIn.style.width='100%';
+    sdDiv.appendChild(sdIn);
+    const ctrl=UI.buttons([{label:'Simulate & Run ANOVA',primary:true,onclick:run},{label:'H₀: all means equal',onclick:()=>{const g=nG.get(); meansIn.value=Array.from({length:g},()=>'50').join(', ');run();}}]);
+    const stats=UI.statsBox();
+    const plot=UI.plotCard('Group distributions',280);
+    const fPlot=UI.plotCard('F distribution under H₀ (red = observed F)',200);
+    const interp=document.createElement('div'); interp.className='note'; interp.style.cssText='font-size:.8rem;';
+    host.appendChild(UI.appGrid([nG,nS,groupDiv,sdDiv,ctrl,stats,interp],[plot,fPlot]));
+    function buildGroupInputs(){ const g=nG.get(); const cur=meansIn.value.split(',').map(v=>v.trim()); const arr=Array.from({length:g},(_,i)=>cur[i]||'50'); meansIn.value=arr.join(', '); }
+    // F CDF via regularized incomplete beta
+    function fCDF(f,d1,d2){ if(f<=0)return 0; const x=d1*f/(d1*f+d2); return M.betai(d1/2,d2/2,x); }
+    function fPDF(f,d1,d2){ if(f<=0)return 0;
+      const logp=d1/2*Math.log(d1)+d2/2*Math.log(d2)+M.gammaln((d1+d2)/2)-M.gammaln(d1/2)-M.gammaln(d2/2)+(d1/2-1)*Math.log(f)-(d1+d2)/2*Math.log(d2+d1*f);
+      return Math.exp(logp); }
+    function run(){
+      const g=nG.get(), n=nS.get(), sigma=parseFloat(sdIn.value)||10;
+      const rawMeans=meansIn.value.split(',').map(v=>parseFloat(v.trim())||50);
+      const mus=Array.from({length:g},(_,i)=>rawMeans[i]||50);
+      // Generate data
+      const groups=mus.map(mu=>Array.from({length:n},()=>M.normal(mu,sigma)));
+      const grandMean=M.mean(groups.flat());
+      const ssBetween=groups.reduce((s,grp,i)=>s+n*(M.mean(grp)-grandMean)**2,0);
+      const ssWithin=groups.reduce((s,grp)=>s+grp.reduce((ss,v)=>ss+(v-M.mean(grp))**2,0),0);
+      const dfBetween=g-1, dfWithin=g*(n-1);
+      const msBetween=ssBetween/dfBetween, msWithin=ssWithin/dfWithin;
+      const F=msBetween/msWithin;
+      const pVal=1-fCDF(F,dfBetween,dfWithin);
+      stats.set([{k:'F statistic',v:M.round(F,4),accent:1},{k:'p-value',v:M.round(pVal,4),accent:1},{k:'df between',v:dfBetween},{k:'df within',v:dfWithin},{k:'MS between',v:M.round(msBetween,2)},{k:'MS within',v:M.round(msWithin,2)}]);
+      const allVals=groups.flat();
+      const lo=M.min(allVals)-2*sigma, hi=M.max(allVals)+2*sigma;
+      const COLORS=[COL.data,COL.sampling,COL.prob,COL.infer,COL.multi];
+      const ch=plot.chart(); ch.setX(lo,hi).setY(0,M.normPdf(0,0,sigma)*1.3); ch.clear(); ch.grid(); ch.axisX(niceTicks(lo,hi,6));
+      groups.forEach((grp,i)=>{ const mu=M.mean(grp); ch.curve(x=>M.normPdf(x,mu,sigma),COLORS[i%COLORS.length],2.5); ch.vline(mu,COLORS[i%COLORS.length],1.5,[3,3]); const ctx=ch.ctx; ctx.fillStyle=COLORS[i%COLORS.length]; ctx.font='bold 10px "JetBrains Mono",monospace'; ctx.textAlign='center'; ctx.fillText('G'+(i+1),ch.X(mu),ch.py1+14); });
+      ch.vline(grandMean,COL.ink,2,[5,3]);
+      // F distribution
+      const df1=dfBetween, df2=dfWithin; const xMax=Math.max(6,F*1.5);
+      const chF=fPlot.chart(); const maxFpdf=fPDF(Math.min((df1-2)/df1*(df2/(df2+2)),xMax*0.8),df1,df2)||1;
+      chF.setX(0,xMax).setY(0,maxFpdf*1.4); chF.clear(); chF.grid(); chF.axisX(niceTicks(0,xMax,5));
+      chF.shade(x=>fPDF(x,df1,df2),Math.max(0,F),xMax,hexA(COL.coral,.3));
+      chF.curve(x=>fPDF(x,df1,df2),COL.classic,2.5); chF.vline(F,COL.coral,2.5); chF.marker(F,'F='+M.round(F,2),COL.coral);
+      const sig=pVal<0.001?'p < 0.001 (highly significant)':pVal<0.01?`p = ${M.round(pVal,4)} (very significant)`:pVal<0.05?`p = ${M.round(pVal,4)} (significant)`:pVal<0.1?`p = ${M.round(pVal,4)} (marginal):`:`p = ${M.round(pVal,4)} (not significant)`;
+      interp.innerHTML=`<b>What ANOVA tests:</b> H₀: all group means are equal. H₁: at least one differs.<br>
+        <b>F = MS_between / MS_within = ${M.round(msBetween,2)} / ${M.round(msWithin,2)} = ${M.round(F,4)}.</b><br>
+        MS_between measures variation <em>between</em> group means; MS_within measures variation <em>within</em> groups (pure noise).<br>
+        <b>Large F</b> → group means are far apart relative to within-group spread → evidence against H₀.<br>
+        <b>${sig}.</b> ${pVal<0.05?'Reject H₀ — there is significant evidence that at least one group mean differs.':'Fail to reject H₀ — insufficient evidence of a difference between group means at α = 0.05.'}<br>
+        <em>Note: ANOVA assumes equal variances and approximately normal data within groups.</em>`;
+    }
+    buildGroupInputs(); run();
+  }
+});
+
 /* --------------------- (4) CATALOG RENDERING ------------------------ */
 function renderCatalog(){
   const root=document.getElementById('catalog'); root.innerHTML='';
