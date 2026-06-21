@@ -1386,7 +1386,7 @@ add({ id:'linear-comb', cat:'multi', tag:'simulation', title:'Linear Combination
       const maxD=Math.max(...props,M.normPdf(theoryMu,theoryMu,theorySigma));
       ch.setX(lo-pad,hi+pad).setY(0,maxD*1.18); ch.clear();
       ch.bars(hb.map((b,i)=>({lo:b.lo,hi:b.hi,count:props[i]})),hexA(COL.multi,.7)); ch.grid(); ch.axisX(niceTicks(lo-pad,hi+pad,6));
-      if(normalSeg.get()==='1') ch.curve(x=>M.normPdf(x,theoryMu,theorySigma),COL.coral,2.5);
+      if(normalSeg.get()!=0) ch.curve(x=>M.normPdf(x,theoryMu,theorySigma),COL.coral,2.5);
       const obsMu=M.mean(vals),obsSd=M.sd(vals);
       stats.set([{k:'simulations',v:vals.length},{k:'observed μ',v:M.round(obsMu,3),accent:1},{k:'observed σ',v:M.round(obsSd,3),accent:1},{k:'theory μ',v:M.round(theoryMu,3)},{k:'theory σ',v:M.round(theorySigma,3)}]);
       interp.innerHTML=`<b>Central Limit Theorem (CLT):</b><br>
