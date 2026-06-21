@@ -187,13 +187,87 @@ canvas{display:block;}
 .foot .row{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;align-items:center;}
 .foot .brand-sm{font-family:var(--display);font-weight:600;color:var(--ink);font-size:1rem;}
 
-/* responsive */
+/* ---------- Dark mode ---------- */
+@media(prefers-color-scheme:dark){
+  :root{
+    --paper:#18161F;
+    --paper-2:#211E2E;
+    --ink:#F0EEF8;
+    --ink-soft:#B8B4CC;
+    --ink-faint:#6B6780;
+    --line:#2E2B3E;
+    --grid:#221F30;
+    --white:#211E2E;
+    --shadow-sm:0 1px 2px rgba(0,0,0,.3);
+    --shadow-md:0 4px 16px rgba(0,0,0,.4);
+    --shadow-lg:0 12px 32px rgba(0,0,0,.5);
+  }
+  body{background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);}
+  .topbar{background:rgba(24,22,31,.88);}
+  .hero-canvas-card{background:var(--white);}
+  .ctrl input[type=number],.ctrl input[type=text],.ctrl select,.ctrl textarea{background:var(--paper-2);border-color:var(--line);color:var(--ink);}
+  .abtn{background:var(--paper-2);color:var(--ink);}
+  .back{background:var(--paper-2);}
+}
+
+/* ---------- Search bar ---------- */
+.search-wrap{padding:18px 0 4px;}
+.search-box{
+  display:flex;align-items:center;gap:10px;
+  background:var(--white);border:1px solid var(--line);border-radius:99px;
+  padding:10px 18px;box-shadow:var(--shadow-sm);max-width:480px;
+  transition:.18s;
+}
+.search-box:focus-within{border-color:var(--c-data);box-shadow:0 0 0 3px rgba(79,70,229,.12);}
+.search-box svg{color:var(--ink-faint);flex:none;}
+.search-box input{border:none;background:transparent;font-family:var(--body);font-size:.93rem;color:var(--ink);outline:none;width:100%;}
+.search-box input::placeholder{color:var(--ink-faint);}
+#searchEmpty{display:none;text-align:center;padding:40px 0;color:var(--ink-faint);font-size:.9rem;}
+
+/* ---------- Difficulty badges ---------- */
+.diff{display:inline-flex;align-items:center;gap:4px;font-family:var(--mono);font-size:.6rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:3px 8px;border-radius:99px;margin-left:auto;}
+.diff-intro{background:rgba(13,148,136,.12);color:#0D9488;}
+.diff-inter{background:rgba(245,158,11,.12);color:#B45309;}
+.diff-adv{background:rgba(225,29,72,.12);color:#E11D48;}
+
+/* ---------- Guiding questions ---------- */
+.guiding{background:linear-gradient(135deg,rgba(79,70,229,.06),rgba(124,58,237,.06));border:1px solid rgba(79,70,229,.15);border-radius:var(--r-md);padding:14px 18px;margin-bottom:16px;}
+.guiding .q-title{font-family:var(--mono);font-size:.66rem;letter-spacing:.1em;text-transform:uppercase;color:var(--c-data);font-weight:600;margin-bottom:8px;}
+.guiding ol{margin:0;padding-left:18px;font-size:.84rem;color:var(--ink-soft);line-height:1.7;}
+.guiding ol li{margin-bottom:2px;}
+
+/* ---------- Keyboard hint ---------- */
+.kbd{display:inline-flex;align-items:center;gap:4px;font-family:var(--mono);font-size:.68rem;color:var(--ink-faint);}
+.kbd kbd{background:var(--paper-2);border:1px solid var(--line);border-radius:4px;padding:1px 5px;font-size:.68rem;}
+
+/* ---------- Share button ---------- */
+.share-btn{
+  display:inline-flex;align-items:center;gap:6px;
+  font-family:var(--mono);font-size:.72rem;font-weight:600;
+  background:var(--paper-2);border:1px solid var(--line);border-radius:99px;
+  padding:6px 13px;cursor:pointer;color:var(--ink-soft);transition:.15s;
+}
+.share-btn:hover{color:var(--ink);border-color:var(--ink-soft);}
+.share-btn.copied{color:var(--c-sampling);border-color:var(--c-sampling);}
+
+/* ---------- Responsive ---------- */
 @media(max-width:880px){
   .hero-inner{grid-template-columns:1fr;gap:30px;padding:40px 0;}
   .hero-canvas-card{order:-1;}
-  .app-grid{grid-template-columns:1fr;}
+  .app-grid{grid-template-columns:1fr !important;}
+  .app-grid > .panel{order:2;}
+  .app-grid > .viz{order:1;}
   .sec-head .desc{display:none;}
   .topbar nav{display:none;}
+  .search-wrap{padding:12px 0 0;}
+  .guiding{margin-bottom:12px;}
+}
+@media(max-width:540px){
+  .wrap{padding:0 14px;}
+  .app-head h2{font-size:1.5rem;}
+  .stats{grid-template-columns:repeat(2,1fr);}
+  .btnrow{flex-direction:column;}
+  .abtn{flex:unset;}
 }
 @media(prefers-reduced-motion:reduce){
   *{animation-duration:.001ms!important;transition-duration:.001ms!important;}
@@ -219,6 +293,9 @@ canvas{display:block;}
       StatLab <span class="beta">v1</span>
     </button>
     <nav id="topnav"></nav>
+    <button class="share-btn" id="darkToggle" onclick="toggleDark()" title="Toggle dark mode" aria-label="Toggle dark mode">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" id="darkIcon"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
   </div>
 </header>
 
@@ -249,6 +326,15 @@ canvas{display:block;}
     </div>
   </section>
 
+  <div class="wrap">
+    <div class="search-wrap">
+      <div class="search-box">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        <input id="searchInput" type="search" placeholder="Search tools…" autocomplete="off" oninput="filterCatalog(this.value)" onkeydown="if(event.key==='Escape')this.value='',filterCatalog('')">
+      </div>
+    </div>
+    <div id="searchEmpty">No tools match your search. Try a different keyword.</div>
+  </div>
   <div class="wrap" id="catalog"></div>
 
   <footer class="foot">
@@ -258,7 +344,7 @@ canvas{display:block;}
         <div style="margin-top:6px;max-width:52ch;">Free to use, remix, and share.</div>
       </div>
       <div style="text-align:right;font-family:var(--mono);font-size:.76rem;line-height:1.9;">
-        Keke Wang &amp; Statistics.
+        Replace this footer with your name &amp; course.
       </div>
     </div>
   </footer>
@@ -416,7 +502,10 @@ const add = (a)=>APPLETS.push(a);
 const UI = {
   appGrid(controls,viz){ const g=document.createElement('div'); g.className='app-grid';
     const c=document.createElement('div'); c.className='panel'; const cc=document.createElement('div'); cc.className='controls'; controls.forEach(x=>cc.appendChild(x)); c.appendChild(cc);
-    const v=document.createElement('div'); v.className='viz'; viz.forEach(x=>v.appendChild(x)); g.append(c,v); return g; },
+    const v=document.createElement('div'); v.className='viz'; viz.forEach(x=>v.appendChild(x));
+    // On mobile, show viz first
+    if(window.innerWidth<=880){ g.append(v,c); } else { g.append(c,v); }
+    return g; },
   slider({label,min,max,step=1,value,fmt=(v)=>v,oninput}){ const w=document.createElement('div'); w.className='ctrl';
     w.innerHTML=`<label>${label}<span class="val"></span></label><input type="range" min="${min}" max="${max}" step="${step}" value="${value}">`;
     const inp=w.querySelector('input'), val=w.querySelector('.val'); const upd=()=>val.textContent=fmt(+inp.value); upd();
@@ -434,7 +523,13 @@ const UI = {
     w.innerHTML=`<label>${label}</label><select>${options.map(o=>`<option value="${o.value}" ${o.value===value?'selected':''}>${o.label}</option>`).join('')}</select>`;
     const s=w.querySelector('select'); s.addEventListener('change',()=>onchange(s.value)); w.get=()=>s.value; return w; },
   buttons(list){ const w=document.createElement('div'); w.className='ctrl'; const row=document.createElement('div'); row.className='btnrow'; w.appendChild(row);
-    list.forEach(b=>{ const btn=document.createElement('button'); btn.className='abtn'+(b.primary?' primary':''); btn.textContent=b.label; btn.onclick=b.onclick; b.ref&&b.ref(btn); row.appendChild(btn); }); return w; },
+    let primaryBtn=null;
+    list.forEach(b=>{ const btn=document.createElement('button'); btn.className='abtn'+(b.primary?' primary':''); btn.textContent=b.label; btn.onclick=b.onclick; b.ref&&b.ref(btn);
+      if(b.primary){ primaryBtn=btn; btn.title='Press Enter to run'; }
+      row.appendChild(btn); });
+    // Enter key triggers primary button when focus is in this applet
+    if(primaryBtn){ w._primaryBtn=primaryBtn; }
+    return w; },
   statsBox(){ const w=document.createElement('div'); w.className='stats'; w.set=(arr)=>{ w.innerHTML=arr.map(s=>`<div class="stat"><div class="k">${s.k}</div><div class="v ${s.accent?'accent':''}">${s.v}</div></div>`).join(''); }; return w; },
   plotCard(title,h=null){ const w=document.createElement('div'); w.className='plot-card';
     w.innerHTML=`<div class="plot-title">${title}</div><div class="plotwrap"><canvas></canvas></div>`;
@@ -442,7 +537,8 @@ const UI = {
   note(html){ const w=document.createElement('div'); w.className='note'; w.innerHTML=html; return w; }
 };
 /* ===== Data Analysis : Descriptive Statistics ===== */
-add({ id:'descriptive', cat:'data', tag:'explore', title:'Descriptive Statistics',
+add({ id:'descriptive', cat:'data', tag:'explore', title:'Descriptive Statistics', diff:'intro',
+  questions:['When you add a very large outlier, which moves more — the mean or the median? Why?','How does changing the number of bins affect your impression of the shape?','Can two very different-looking datasets have the same mean and SD?'],
   blurb:'Type or generate data and instantly see the histogram, boxplot, and summary numbers.',
   build(host){
     let data=[12,15,15,18,21,22,22,23,25,28,29,31,34,35,41];
@@ -479,7 +575,8 @@ add({ id:'descriptive', cat:'data', tag:'explore', title:'Descriptive Statistics
 });
 
 /* ===== Data Analysis : Guess the Correlation ===== */
-add({ id:'guess-corr', cat:'data', tag:'game', title:'Guess the Correlation',
+add({ id:'guess-corr', cat:'data', tag:'game', title:'Guess the Correlation', diff:'intro',
+  questions:['What does a scatterplot with r = 0 look like? Is it always a random cloud?','Can a strong curved relationship have r near 0?','Which is harder to judge accurately — positive or negative correlations?'],
   blurb:'Train your eye. See a scatterplot, guess r from −1 to 1, and score yourself over many rounds.',
   build(host){
     let truth=0,xs=[],ys=[],revealed=false,round=0,totalErr=0;
@@ -507,7 +604,8 @@ add({ id:'guess-corr', cat:'data', tag:'game', title:'Guess the Correlation',
 });
 
 /* ===== Data Analysis : Least Squares Regression ===== */
-add({ id:'least-squares', cat:'data', tag:'interactive', title:'Least Squares Regression',
+add({ id:'least-squares', cat:'data', tag:'interactive', title:'Least Squares Regression', diff:'intro',
+  questions:['Add one point far from the rest. How much does the line move? This is called leverage.','What happens to r² as you add more points along a tight line vs. a scattered cloud?','Can you find a configuration where the slope is negative but r² is still high?'],
   blurb:'Click to drop points. The line, equation, r, and r² update live. Toggle residual squares to see what "least squares" means.',
   build(host){
     const example=[[1,2.2],[2,2.0],[3,3.6],[4,3.9],[5,5.4],[6,5.1],[7,6.8],[8,7.2]];
@@ -550,7 +648,8 @@ add({ id:'least-squares', cat:'data', tag:'interactive', title:'Least Squares Re
   }
 });
 /* ===== Sampling : Reese's Pieces (sampling distribution of a proportion) ===== */
-add({ id:'reeses', cat:'sampling', tag:'simulation', title:"Reese's Pieces — Sample Proportions",
+add({ id:'reeses', cat:'sampling', tag:'simulation', title:"Reese's Pieces — Sample Proportions", diff:'intro',
+  questions:['Double the sample size n. What happens to the width of the sampling distribution?','What shape does the distribution approach, and when does it fail to be bell-shaped?','Why does the mean of p̂ always equal π, no matter how many samples you take?'],
   blurb:'Each grab of candies gives a sample proportion orange. Take thousands of samples and watch the sampling distribution of p̂ build up.',
   build(host){
     let dist=[];
@@ -594,7 +693,8 @@ add({ id:'reeses', cat:'sampling', tag:'simulation', title:"Reese's Pieces — S
 });
 
 /* ===== Sampling : Confidence Interval coverage ===== */
-add({ id:'ci-sim', cat:'sampling', tag:'simulation', title:'Confidence Interval Coverage',
+add({ id:'ci-sim', cat:'sampling', tag:'simulation', title:'Confidence Interval Coverage', diff:'inter',
+  questions:['Change the confidence level from 95% to 80%. What happens to the width of intervals and the capture rate?','If you draw just one interval and it captures π, can you say "there is a 95% chance π is in this interval"? Why or why not?','Try a very small n. What do you notice about the interval widths?'],
   blurb:'Draw sample after sample, build a confidence interval from each, and count how many actually capture the true parameter. See what "95% confident" means.',
   build(host){
     let intervals=[]; let captured=0; let total=0;
@@ -633,7 +733,8 @@ add({ id:'ci-sim', cat:'sampling', tag:'simulation', title:'Confidence Interval 
   }
 });
 /* ===== Probability : Normal Probability Calculator ===== */
-add({ id:'normal-calc', cat:'prob', tag:'calculator', title:'Normal Probability Calculator',
+add({ id:'normal-calc', cat:'prob', tag:'calculator', title:'Normal Probability Calculator', diff:'intro',
+  questions:['What probability lies within 1, 2, and 3 standard deviations of the mean?','If you change the mean but keep the SD the same, does any probability change?','Find a region that captures exactly 90% of the distribution.'],
   blurb:'Set the mean and SD, choose a region, and read off the probability with the area shaded under the curve.',
   build(host){
     let mode='between';
@@ -666,7 +767,8 @@ add({ id:'normal-calc', cat:'prob', tag:'calculator', title:'Normal Probability 
 });
 
 /* ===== Probability : t Probability Calculator ===== */
-add({ id:'t-calc', cat:'prob', tag:'calculator', title:'t Probability Calculator',
+add({ id:'t-calc', cat:'prob', tag:'calculator', title:'t Probability Calculator', diff:'inter',
+  questions:['At what degrees of freedom does the t distribution become nearly indistinguishable from the standard normal?','Why does a t-based confidence interval get wider when df is small?','Compare P(t > 2) for df=5 vs df=30. How big is the difference?'],
   blurb:'The Student t distribution with adjustable degrees of freedom, shown against the standard normal so you can see the heavier tails.',
   build(host){
     let mode='lt';
@@ -691,7 +793,8 @@ add({ id:'t-calc', cat:'prob', tag:'calculator', title:'t Probability Calculator
   }
 });
 /* ===== Inference : One Proportion (randomization / null distribution) ===== */
-add({ id:'one-prop', cat:'infer', tag:'randomization', title:'One Proportion — Test of Significance',
+add({ id:'one-prop', cat:'infer', tag:'randomization', title:'One Proportion — Test of Significance', diff:'inter',
+  questions:['What is the p-value telling you, precisely? What is it NOT telling you?','Keep everything the same but double n. How does the p-value change?','Why is a p-value below 0.05 not the same as the effect being "large" or "important"?'],
   blurb:'Suppose the null hypothesis is true. Simulate that chance process thousands of times and see how unusual your observed result really is.',
   build(host){
     let nullDist=[];
@@ -728,7 +831,8 @@ add({ id:'one-prop', cat:'infer', tag:'randomization', title:'One Proportion —
 });
 
 /* ===== Inference : Two groups randomization test ===== */
-add({ id:'two-means', cat:'infer', tag:'randomization', title:'Randomization Test — Two Groups',
+add({ id:'two-means', cat:'infer', tag:'randomization', title:'Randomization Test — Two Groups', diff:'inter',
+  questions:['Why do we shuffle group labels rather than resample data with replacement?','Make the two groups identical. What happens to the p-value?','How small does the observed difference need to be before the p-value exceeds 0.05?'],
   blurb:'Compare two groups by repeatedly shuffling the group labels. If group really did not matter, how big a difference would chance alone produce?',
   build(host){
     let A=[7,8,5,9,6,8,7,10,6,9], B=[5,6,4,7,5,6,5,4,6,5]; let nullDist=[]; let obsDiff=0;
@@ -763,8 +867,267 @@ add({ id:'two-means', cat:'infer', tag:'randomization', title:'Randomization Tes
     reset();
   }
 });
+/* ===== Inference : Bootstrap CI for Single Mean ===== */
+add({ id:'bootstrap-mean', cat:'infer', tag:'bootstrap', title:'Bootstrap CI — Single Mean', diff:'inter',
+  questions:['How does the bootstrap CI compare to the formula-based t-interval for the same data?','What happens to the CI width when you add a large outlier to the data?','Try a very small dataset (n=5). Does the bootstrap CI look symmetric?'],
+  blurb:'Resample with replacement to build a bootstrap distribution for the sample mean, then read off a percentile confidence interval.',
+  build(host){
+    let data=[14,18,11,13,16,19,22,15,12,17,20,14,18,16,13]; let boot=[];
+    const ta=UI.textarea({label:'Data',value:data.join(', '),onchange:v=>{data=parseNums(v);reset();}});
+    const gen=UI.buttons([
+      {label:'Normal n=30',onclick:()=>{data=Array.from({length:30},()=>M.round(M.normal(50,10),1));ta.set(data.join(', '));reset();}},
+      {label:'Skewed n=30',onclick:()=>{data=Array.from({length:30},()=>M.round(Math.exp(M.normal(3,0.4)),1));ta.set(data.join(', '));reset();}}
+    ]);
+    const levelS=UI.slider({label:'Confidence level',min:80,max:99,value:95,fmt:v=>v+'%',oninput:draw});
+    const stats=UI.statsBox();
+    const plot=UI.plotCard('Bootstrap distribution of x̄',260);
+    const ctrl=UI.buttons([{label:'Resample 2000',primary:true,onclick:()=>run(2000)},{label:'+5000',onclick:()=>run(5000)},{label:'Reset',onclick:reset}]);
+    const interp=document.createElement('div'); interp.className='note'; interp.style.cssText='font-size:.8rem;';
+    host.appendChild(UI.appGrid([ta,gen,levelS,ctrl,stats,interp],[plot]));
+    function reset(){ boot=[]; draw(); }
+    function run(k){ if(data.length<2)return; for(let i=0;i<k;i++) boot.push(M.mean(M.sampleWithRep(data,data.length))); draw(); }
+    function draw(){
+      const obs=data.length?M.mean(data):0, obsSd=data.length>1?M.sd(data):0, n=data.length;
+      const alpha=(1-levelS.get()/100)/2;
+      const ch=plot.chart();
+      if(!boot.length){ const r=obsSd/Math.sqrt(n)*3||1; ch.setX(obs-r,obs+r).setY(0,1); ch.clear(); ch.grid(); ch.vline(obs,COL.infer,2.5); ch.axisX(niceTicks(obs-r,obs+r,6));
+        stats.set([{k:'n',v:n},{k:'sample mean',v:M.round(obs,3),accent:1},{k:'sample SD',v:M.round(obsSd,3)},{k:'resamples',v:0}]); return; }
+      const lo=M.min(boot),hi=M.max(boot),pad=(hi-lo)*0.08||0.5;
+      const nb=Math.min(40,Math.max(12,Math.round(Math.sqrt(boot.length))));
+      const hb=histogram(boot,nb,lo-pad,hi+pad); const maxc=Math.max(...hb.map(b=>b.count));
+      ch.setX(lo-pad,hi+pad).setY(0,maxc*1.15); ch.clear();
+      const cLo=M.quantile(boot,alpha),cHi=M.quantile(boot,1-alpha);
+      hb.forEach(b=>{ const mid=(b.lo+b.hi)/2; ch.bars([b],(mid>=cLo&&mid<=cHi)?hexA(COL.infer,.75):hexA(COL.infer,.28)); });
+      ch.grid(); ch.axisX(niceTicks(lo,hi,6)); ch.vline(cLo,COL.amber,2); ch.vline(cHi,COL.amber,2); ch.vline(obs,COL.ink,2,[4,3]);
+      // t-based CI for comparison
+      const tStar=M.tInv(1-alpha,n-1); const se=obsSd/Math.sqrt(n);
+      const tLo=obs-tStar*se, tHi=obs+tStar*se;
+      stats.set([{k:'n',v:n},{k:'sample mean',v:M.round(obs,3),accent:1},{k:'boot CI low',v:M.round(cLo,3),accent:1},{k:'boot CI high',v:M.round(cHi,3),accent:1},{k:'t CI low',v:M.round(tLo,3)},{k:'t CI high',v:M.round(tHi,3)},{k:'resamples',v:boot.length}]);
+      interp.innerHTML=`<b>Bootstrap ${levelS.get()}% CI: [${M.round(cLo,3)}, ${M.round(cHi,3)}]</b> — the middle ${levelS.get()}% of ${boot.length} bootstrap means.<br>
+        <b>t-based CI: [${M.round(tLo,3)}, ${M.round(tHi,3)}]</b> — uses the t-distribution formula with SE = s/√n = ${M.round(se,3)}.<br>
+        ${Math.abs(cLo-tLo)<0.1&&Math.abs(cHi-tHi)<0.1?'Both methods agree closely — as expected when data are roughly normal.':'The intervals differ — likely because the data are skewed or n is small, where the t-formula is less reliable.'}`;
+    }
+    reset();
+  }
+});
+
+/* ===== Inference : One-Sample t-Test Calculator ===== */
+add({ id:'one-t-test', cat:'infer', tag:'calculator', title:'One-Sample t-Test', diff:'inter',
+  questions:['What is the null hypothesis you are testing? What would make you reject it?','How does doubling n (keeping everything else constant) affect the t statistic and p-value?','Why do we use a t distribution rather than a normal distribution when σ is unknown?'],
+  blurb:'Enter your data or summary statistics. Compute the t statistic, p-value, and confidence interval, with full interpretation.',
+  build(host){
+    let data=[14,18,11,13,16,19,22,15,12,17,20,14,18,16,13];
+    const ta=UI.textarea({label:'Data (or leave blank to use summary stats)',value:data.join(', '),hint:'Enter numbers separated by commas/spaces',onchange:v=>{data=parseNums(v);syncFromData();draw();}});
+    const mu0I=UI.number({label:'Null hypothesis mean (μ₀)',value:15,onchange:draw});
+    const altSeg=UI.seg({label:'Alternative hypothesis',options:[{label:'μ ≠ μ₀',value:'two'},{label:'μ > μ₀',value:'gt'},{label:'μ < μ₀',value:'lt'}],value:'two',onchange:draw});
+    const levelS=UI.slider({label:'Confidence level for CI',min:80,max:99,value:95,fmt:v=>v+'%',oninput:draw});
+    // Summary stat inputs (hidden when data entered)
+    const xbarI=UI.number({label:'Sample mean (x̄)',value:M.round(M.mean(data),3),onchange:draw});
+    const sdI=UI.number({label:'Sample SD (s)',value:M.round(M.sd(data),3),min:0.0001,onchange:draw});
+    const nI=UI.number({label:'Sample size (n)',value:data.length,min:2,step:1,onchange:draw});
+    const modeNote=document.createElement('div'); modeNote.className='note'; modeNote.style.cssText='font-size:.78rem;';
+    modeNote.innerHTML='<b>Mode:</b> using raw data. Clear the data field to enter summary statistics manually.';
+    const stats=UI.statsBox();
+    const plot=UI.plotCard('t distribution (df = n−1)',280);
+    const interp=document.createElement('div'); interp.className='note'; interp.style.cssText='font-size:.8rem;';
+    function syncFromData(){ if(data.length>=2){ xbarI.set(M.round(M.mean(data),4)); sdI.set(M.round(M.sd(data),4)); nI.set(data.length); modeNote.innerHTML='<b>Mode:</b> using raw data.'; } else { modeNote.innerHTML='<b>Mode:</b> using summary statistics.'; } }
+    host.appendChild(UI.appGrid([ta,mu0I,altSeg,levelS,modeNote,xbarI,sdI,nI,stats,interp],[plot]));
+    function draw(){
+      const mu0=mu0I.get(), alt=altSeg.get(), lvl=levelS.get();
+      const xbar=data.length>=2?M.mean(data):xbarI.get();
+      const s=data.length>=2?M.sd(data):Math.max(1e-6,sdI.get());
+      const n=data.length>=2?data.length:Math.max(2,Math.round(nI.get()));
+      const df=n-1; const se=s/Math.sqrt(n); const t=(xbar-mu0)/se;
+      let p;
+      if(alt==='two') p=2*(1-M.tCdf(Math.abs(t),df));
+      else if(alt==='gt') p=1-M.tCdf(t,df);
+      else p=M.tCdf(t,df);
+      const alpha=(1-lvl/100)/2; const tStar=M.tInv(1-alpha,df);
+      const ciLo=xbar-tStar*se, ciHi=xbar+tStar*se;
+      stats.set([{k:'x̄',v:M.round(xbar,4)},{k:'s',v:M.round(s,4)},{k:'n',v:n},{k:'t',v:M.round(t,4),accent:1},{k:'df',v:df},{k:'p-value',v:M.round(p,4),accent:1},{k:'CI low',v:M.round(ciLo,3)},{k:'CI high',v:M.round(ciHi,3)}]);
+      // Plot
+      const ch=plot.chart(); const lo=-4.5,hi=4.5; const peak=M.tPdf(0,df);
+      ch.setX(lo,hi).setY(0,peak*1.25); ch.clear(); ch.grid(); ch.axisX(niceTicks(lo,hi,7));
+      const pdf=x=>M.tPdf(x,df);
+      if(alt==='two'){ const at=Math.abs(t); ch.shade(pdf,lo,-at,hexA(COL.infer,.3)); ch.shade(pdf,at,hi,hexA(COL.infer,.3)); }
+      else if(alt==='gt'){ ch.shade(pdf,t,hi,hexA(COL.infer,.3)); }
+      else { ch.shade(pdf,lo,t,hexA(COL.infer,.3)); }
+      ch.curve(pdf,COL.infer,2.5); ch.vline(t,COL.coral,2.5); ch.marker(t,'t='+M.round(t,2),COL.coral);
+      const sig=p<0.001?'p < 0.001 — very strong evidence against H₀':p<0.01?`p = ${M.round(p,4)} — strong evidence against H₀`:p<0.05?`p = ${M.round(p,4)} — moderate evidence against H₀`:p<0.1?`p = ${M.round(p,4)} — marginal evidence`:`p = ${M.round(p,4)} — insufficient evidence to reject H₀`;
+      const altText=alt==='two'?'μ ≠ ':alt==='gt'?'μ > ':'μ < ';
+      interp.innerHTML=`<b>Hypotheses:</b> H₀: μ = ${mu0} vs. H₁: ${altText}${mu0}<br>
+        <b>t = (x̄ − μ₀) / (s/√n) = (${M.round(xbar,3)} − ${mu0}) / ${M.round(se,4)} = ${M.round(t,3)}</b><br>
+        Under H₀, this t follows a t-distribution with ${df} degrees of freedom.<br>
+        <b>${sig}.</b> ${p<0.05?`Reject H₀ at α = 0.05.`:'Fail to reject H₀ at α = 0.05.'}<br>
+        <b>${lvl}% CI: [${M.round(ciLo,3)}, ${M.round(ciHi,3)}]</b> — we estimate the true mean lies in this interval with ${lvl}% confidence.`;
+    }
+    syncFromData(); draw();
+  }
+});
+
+/* ===== Inference : Two-Sample t-Test ===== */
+add({ id:'two-t-test', cat:'infer', tag:'calculator', title:'Two-Sample t-Test', diff:'inter',
+  questions:['What assumptions does this test make? How would you check them?','How does changing the sample sizes (keeping means and SDs fixed) affect the conclusion?','Compare the p-value from this t-test to the randomization test result for the same data. Do they agree?'],
+  blurb:'Compare two independent group means. Compute Welch\'s t statistic, p-value, and a confidence interval for the difference.',
+  build(host){
+    let A=[7,8,5,9,6,8,7,10,6,9], B=[5,6,4,7,5,6,5,4,6,5];
+    const taA=UI.textarea({label:'Group A data',value:A.join(', '),onchange:v=>{A=parseNums(v);draw();}});
+    const taB=UI.textarea({label:'Group B data',value:B.join(', '),onchange:v=>{B=parseNums(v);draw();}});
+    const altSeg=UI.seg({label:'Alternative (A − B)',options:[{label:'≠',value:'two'},{label:'>',value:'gt'},{label:'<',value:'lt'}],value:'two',onchange:draw});
+    const levelS=UI.slider({label:'CI confidence level',min:80,max:99,value:95,fmt:v=>v+'%',oninput:draw});
+    const stats=UI.statsBox();
+    const plot=UI.plotCard('Group distributions + t distribution',280);
+    const interp=document.createElement('div'); interp.className='note'; interp.style.cssText='font-size:.8rem;';
+    host.appendChild(UI.appGrid([taA,taB,altSeg,levelS,stats,interp],[plot]));
+    function draw(){
+      if(A.length<2||B.length<2){ stats.set([{k:'error',v:'need ≥2 per group'}]); return; }
+      const nA=A.length,nB=B.length,xA=M.mean(A),xB=M.mean(B),sA=M.sd(A),sB=M.sd(B);
+      const seA=sA*sA/nA, seB=sB*sB/nB; const se=Math.sqrt(seA+seB);
+      const diff=xA-xB; const t=diff/se;
+      // Welch df
+      const df=Math.pow(seA+seB,2)/(seA*seA/(nA-1)+seB*seB/(nB-1));
+      const alt=altSeg.get(); let p;
+      if(alt==='two') p=2*(1-M.tCdf(Math.abs(t),df));
+      else if(alt==='gt') p=1-M.tCdf(t,df);
+      else p=M.tCdf(t,df);
+      const alpha=(1-levelS.get()/100)/2; const tStar=M.tInv(1-alpha,df);
+      const ciLo=diff-tStar*se, ciHi=diff+tStar*se;
+      stats.set([{k:'x̄ A',v:M.round(xA,3),accent:1},{k:'x̄ B',v:M.round(xB,3),accent:1},{k:'diff',v:M.round(diff,3)},{k:'SE',v:M.round(se,4)},{k:'t',v:M.round(t,4),accent:1},{k:'Welch df',v:M.round(df,1)},{k:'p-value',v:M.round(p,4),accent:1},{k:'CI low',v:M.round(ciLo,3)},{k:'CI high',v:M.round(ciHi,3)}]);
+      // Plot group distributions
+      const allVals=[...A,...B]; const lo=M.min(allVals)-1,hi=M.max(allVals)+1;
+      const ch=plot.chart(); ch.setX(lo,hi).setY(0,M.normPdf(0,0,Math.max(sA,sB))*1.4); ch.clear(); ch.grid(); ch.axisX(niceTicks(lo,hi,6));
+      ch.curve(x=>M.normPdf(x,xA,sA),COL.data,2.5); ch.curve(x=>M.normPdf(x,xB,sB),COL.infer,2.5);
+      ch.vline(xA,COL.data,1.5,[3,3]); ch.vline(xB,COL.infer,1.5,[3,3]);
+      const ctx=ch.ctx; ctx.font='bold 10px "JetBrains Mono",monospace'; ctx.textAlign='center';
+      ctx.fillStyle=COL.data; ctx.fillText('A',ch.X(xA),ch.py1+14);
+      ctx.fillStyle=COL.infer; ctx.fillText('B',ch.X(xB),ch.py1+14);
+      const sig=p<0.05?'Reject H₀ — significant difference':'Fail to reject H₀';
+      const altText=alt==='two'?'μ_A ≠ μ_B':alt==='gt'?'μ_A > μ_B':'μ_A < μ_B';
+      interp.innerHTML=`<b>Welch's t-test (does not assume equal variances).</b><br>
+        H₀: μ_A = μ_B &nbsp;|&nbsp; H₁: ${altText}<br>
+        <b>t = ${M.round(t,3)}</b> with df = ${M.round(df,1)} (Welch–Satterthwaite approximation).<br>
+        <b>p-value = ${M.round(p,4)}</b> → ${sig} at α = 0.05.<br>
+        <b>${levelS.get()}% CI for (μ_A − μ_B): [${M.round(ciLo,3)}, ${M.round(ciHi,3)}]</b>.
+        ${ciLo>0?'The entire CI is above 0 → Group A appears meaningfully higher.':ciHi<0?'The entire CI is below 0 → Group B appears meaningfully higher.':'CI contains 0 → consistent with no difference.'}`;
+    }
+    draw();
+  }
+});
+
+/* ===== Inference : Residual Diagnostics for Regression ===== */
+add({ id:'resid-diag', cat:'infer', tag:'diagnostic', title:'Regression Residual Diagnostics', diff:'adv',
+  questions:['What pattern in the residuals vs fitted plot would indicate non-constant variance (heteroscedasticity)?','If residuals are not normally distributed, what does the QQ plot look like?','Can you construct a dataset where r² is high but the residuals show a clear pattern?'],
+  blurb:'Fit a regression line to your data and check the four classic diagnostic plots: residuals vs fitted, scale-location, QQ plot, and residuals vs leverage.',
+  build(host){
+    let data=[[1,2.2],[2,2.0],[3,3.6],[4,3.9],[5,5.4],[6,5.1],[7,6.8],[8,7.2]];
+    const ta=UI.textarea({label:'Data (x,y pairs — one pair per line or comma-separated)',value:data.map(p=>p.join(', ')).join('\n'),hint:'Format: x, y per line',onchange:v=>{
+      data=[]; v.split(/\n|;/).forEach(line=>{ const nums=parseNums(line); if(nums.length>=2) data.push([nums[0],nums[1]]); }); render();
+    }});
+    const gen=UI.buttons([
+      {label:'Linear + noise',onclick:()=>{ data=Array.from({length:25},(_,i)=>[i+1,M.round((i+1)*0.8+5+M.normal(0,2),2)]); ta.set(data.map(p=>p.join(', ')).join('\n')); render(); }},
+      {label:'Quadratic (misfit)',onclick:()=>{ data=Array.from({length:25},(_,i)=>[i+1,M.round((i+1-13)**2*0.15+10+M.normal(0,1.5),2)]); ta.set(data.map(p=>p.join(', ')).join('\n')); render(); }},
+    ]);
+    const stats=UI.statsBox();
+    const plotRF=UI.plotCard('Residuals vs Fitted',200);
+    const plotQQ=UI.plotCard('Normal QQ of Residuals',200);
+    const plotSL=UI.plotCard('Scale-Location',200);
+    const interp=document.createElement('div'); interp.className='note'; interp.style.cssText='font-size:.8rem;';
+    host.appendChild(UI.appGrid([ta,gen,stats,interp],[plotRF,plotQQ,plotSL]));
+    function render(){
+      if(data.length<3){ stats.set([{k:'error',v:'need ≥3 pairs'}]); return; }
+      const xs=data.map(p=>p[0]),ys=data.map(p=>p[1]);
+      const {a,b,r}=M.linreg(xs,ys);
+      const fitted=xs.map(x=>a+b*x);
+      const resids=ys.map((y,i)=>y-fitted[i]);
+      const sse=resids.reduce((s,e)=>s+e*e,0), n=data.length, mse=sse/(n-2), rmse=Math.sqrt(mse);
+      const stdResids=resids.map(e=>e/rmse);
+      stats.set([{k:'n',v:n},{k:'slope',v:M.round(b,3)},{k:'intercept',v:M.round(a,3)},{k:'r²',v:M.round(r*r,3),accent:1},{k:'RMSE',v:M.round(rmse,3)},{k:'SSE',v:M.round(sse,2)}]);
+      // Residuals vs Fitted
+      const ch1=plotRF.chart(); const flo=M.min(fitted),fhi=M.max(fitted); const rlo=M.min(resids),rhi=M.max(resids);
+      const rpad=Math.max(0.5,(rhi-rlo)*0.12); const fpad=(fhi-flo)*0.08||0.5;
+      ch1.setX(flo-fpad,fhi+fpad).setY(rlo-rpad,rhi+rpad); ch1.clear(); ch1.grid();
+      ch1.axisX(niceTicks(flo,fhi,5)); ch1.axisY(niceTicks(rlo-rpad,rhi+rpad,4));
+      ch1.line(flo-fpad,0,fhi+fpad,0,hexA(COL.ink,.3),1,[4,3]);
+      ch1.points(fitted,resids,hexA(COL.data,.8),4);
+      // QQ plot of std residuals
+      const ch2=plotQQ.chart(); const sortedR=[...stdResids].sort((a,b)=>a-b);
+      const qqX=sortedR.map((_,i)=>M.normInv((i+0.5)/n));
+      const qqLo=Math.min(M.min(qqX),M.min(sortedR)),qqHi=Math.max(M.max(qqX),M.max(sortedR));
+      const qpad=(qqHi-qqLo)*0.1||0.5;
+      ch2.setX(qqLo-qpad,qqHi+qpad).setY(qqLo-qpad,qqHi+qpad); ch2.clear(); ch2.grid();
+      ch2.axisX(niceTicks(qqLo,qqHi,4)); ch2.axisY(niceTicks(qqLo,qqHi,4));
+      ch2.line(qqLo-qpad,qqLo-qpad,qqHi+qpad,qqHi+qpad,hexA(COL.coral,.5),1.5,[4,3]);
+      ch2.points(qqX,sortedR,hexA(COL.infer,.8),4);
+      // Scale-Location
+      const ch3=plotSL.chart(); const sqrtAbsR=stdResids.map(e=>Math.sqrt(Math.abs(e)));
+      const slLo=M.min(sqrtAbsR),slHi=Math.max(M.max(sqrtAbsR),0.1);
+      const slpad=(slHi-slLo)*0.1||0.1;
+      ch3.setX(flo-fpad,fhi+fpad).setY(0,slHi+slpad); ch3.clear(); ch3.grid();
+      ch3.axisX(niceTicks(flo,fhi,5)); ch3.axisY(niceTicks(0,slHi,4));
+      ch3.points(fitted,sqrtAbsR,hexA(COL.prob,.8),4);
+      // Interpret
+      const maxAbsR=Math.max(...resids.map(e=>Math.abs(e)));
+      const qqDev=qqX.reduce((s,q,i)=>s+Math.abs(sortedR[i]-q),0)/n;
+      interp.innerHTML=`<b>Residuals vs Fitted:</b> Look for random scatter around 0. A curve suggests the relationship is not linear. Funnel shape → non-constant variance.<br>
+        <b>Normal QQ:</b> Points should hug the diagonal. S-curves → skewness. Heavy tails → outliers. Deviation score: ${M.round(qqDev,3)} ${qqDev<0.3?'(good — reasonably normal)':'(notable — residuals may not be normal)'}.<br>
+        <b>Scale-Location:</b> A flat trend is ideal. Upward slope → variance increases with fitted values (heteroscedasticity).<br>
+        Current R² = ${M.round(r*r,3)} — the model explains ${M.round(r*r*100,1)}% of variation in y.`;
+    }
+    render();
+  }
+});
+
+/* ===== Inference : Continuous Uniform Calculator ===== */
+add({ id:'cont-uniform', cat:'prob', tag:'calculator', title:'Continuous Uniform Distribution', diff:'intro',
+  questions:['What is the probability that X falls in any interval of length 0.5, regardless of where it is?','Compare the variance to the Discrete Uniform with the same range. Which is larger?','Why is the CDF a straight line for a continuous uniform distribution?'],
+  blurb:'X ~ Uniform(a,b). Every value in [a,b] is equally likely. Explore the flat PDF and linear CDF.',
+  build(host){
+    const aI=UI.number({label:'Lower bound (a)',value:0,step:0.1,onchange:render});
+    const bI=UI.number({label:'Upper bound (b)',value:1,step:0.1,onchange:render});
+    const modeS=UI.seg({label:'Region',options:[{label:'x<',value:'lt'},{label:'x>',value:'gt'},{label:'between',value:'between'}],value:'between',onchange:render});
+    const loI=UI.number({label:'Lower cutoff',value:0.25,step:0.05,onchange:render});
+    const hiI=UI.number({label:'Upper cutoff',value:0.75,step:0.05,onchange:render});
+    const stats=UI.statsBox();
+    const plot=UI.plotCard('Continuous Uniform PDF',240);
+    const momBox=document.createElement('div'); momBox.className='note'; momBox.style.cssText='font-size:.8rem;';
+    host.appendChild(UI.appGrid([aI,bI,modeS,loI,hiI,stats,momBox],[plot]));
+    function render(){
+      const a=aI.get(),b=bI.get(),mode=modeS.get(),lo=loI.get(),hi=hiI.get();
+      if(b<=a){ stats.set([{k:'error',v:'b must > a'}]); return; }
+      const range=b-a, mean=(a+b)/2, variance=range*range/12, sd=Math.sqrt(variance);
+      let p=0;
+      if(mode==='lt') p=Math.max(0,Math.min(1,(lo-a)/range));
+      else if(mode==='gt') p=Math.max(0,Math.min(1,(b-Math.max(a,lo))/range));
+      else { const clo=Math.max(a,Math.min(lo,hi)), chi=Math.min(b,Math.max(lo,hi)); p=Math.max(0,(chi-clo)/range); }
+      const m1=mean, m2=variance+mean*mean, m3=(a*a*a+a*a*b+a*b*b+b*b*b)/4, skew=0, kurt=-1.2;
+      stats.set([{k:'Mean',v:M.round(mean,4),accent:1},{k:'Variance',v:M.round(variance,4)},{k:'SD',v:M.round(sd,4)},{k:'P',v:M.round(p,4),accent:1}]);
+      momBox.innerHTML=`<b>Moments:</b><br>
+        1st (mean) = (a+b)/2 = ${M.round(mean,3)}: perfectly symmetric midpoint.<br>
+        2nd moment = ${M.round(m2,3)}; Variance = (b−a)²/12 = ${M.round(variance,3)}.<br>
+        Skewness = 0 (perfectly symmetric). Excess Kurtosis = −6/5 = −1.2 (platykurtic — lighter tails than normal).<br>
+        <b>vs Discrete Uniform:</b> Same mean, but continuous has no probability mass at individual points — P(X = c) = 0 for any c.`;
+      const pdf=1/range;
+      const ch=plot.chart(); const pad=range*0.12;
+      ch.setX(a-pad,b+pad).setY(0,pdf*1.6); ch.clear(); ch.grid(); ch.axisX(niceTicks(a-pad,b+pad,6));
+      const ctx=ch.ctx;
+      // shade event region
+      let slo,shi;
+      if(mode==='lt'){ slo=a; shi=Math.max(a,Math.min(lo,b)); }
+      else if(mode==='gt'){ slo=Math.max(a,lo); shi=b; }
+      else { slo=Math.max(a,Math.min(lo,hi)); shi=Math.min(b,Math.max(lo,hi)); }
+      ctx.fillStyle=hexA(COL.prob,.25); ctx.fillRect(ch.X(slo),ch.Y(pdf),ch.X(shi)-ch.X(slo),ch.py0-ch.Y(pdf));
+      // draw PDF
+      ctx.fillStyle=hexA(COL.prob,.18); ctx.fillRect(ch.X(a),ch.Y(pdf),ch.X(b)-ch.X(a),ch.py0-ch.Y(pdf));
+      ctx.strokeStyle=COL.prob; ctx.lineWidth=2.5;
+      ctx.beginPath(); ctx.moveTo(ch.X(a),ch.py0); ctx.lineTo(ch.X(a),ch.Y(pdf)); ctx.lineTo(ch.X(b),ch.Y(pdf)); ctx.lineTo(ch.X(b),ch.py0); ctx.stroke();
+    }
+    render();
+  }
+});
+
 /* ===== Multiple Variables : Bootstrap CI for difference in means ===== */
-add({ id:'bootstrap-two', cat:'multi', tag:'bootstrap', title:'Bootstrap — Difference of Two Groups',
+add({ id:'bootstrap-two', cat:'multi', tag:'bootstrap', title:'Bootstrap — Difference of Two Groups', diff:'inter',
+  questions:['If 0 is outside the 95% CI, what does that tell you about the hypothesis test at α=0.05?','Increase the confidence level to 99%. How does the interval width change?','What makes the bootstrap CI different from a theory-based (formula) CI?'],
   blurb:'Resample each group with replacement thousands of times to build a bootstrap distribution and a percentile confidence interval for the difference in means.',
   build(host){
     let A=[7,8,5,9,6,8,7,10,6,9], B=[5,6,4,7,5,6,5,4,6,5]; let boot=[];
@@ -792,7 +1155,8 @@ add({ id:'bootstrap-two', cat:'multi', tag:'bootstrap', title:'Bootstrap — Dif
 });
 
 /* ===== Classics : Monty Hall ===== */
-add({ id:'monty', cat:'classic', tag:'game', title:'Monty Hall',
+add({ id:'monty', cat:'classic', tag:'game', title:'Monty Hall', diff:'intro',
+  questions:['Before simulating, what is your intuition about whether switching helps?','After 1000 simulations, what win rate do you see for switching vs. staying?','Can you explain WHY switching wins 2/3 of the time using conditional probability?'],
   blurb:'Pick a door. The host opens a goat. Do you switch? Play by hand, then let the simulator settle the argument over thousands of games.',
   build(host){
     let prize=0,pick=-1,opened=-1,stage='pick'; let stayW=0,stayN=0,swW=0,swN=0;
@@ -834,7 +1198,8 @@ add({ id:'monty', cat:'classic', tag:'game', title:'Monty Hall',
 });
 
 /* ===== Classics : Random Babies ===== */
-add({ id:'random-babies', cat:'classic', tag:'simulation', title:'Random Babies',
+add({ id:'random-babies', cat:'classic', tag:'simulation', title:'Random Babies', diff:'intro',
+  questions:['Does the expected number of matches change as you increase the number of mothers?','What fraction of arrangements result in zero matches? Does this surprise you?','How does this relate to the mathematical concept of a "derangement"?'],
   blurb:'Hand newborns back to mothers completely at random. How many babies, on average, end up with the right mother? Rarely as many as you would guess.',
   build(host){
     let counts={}, trials=0; let nMoms=4;
@@ -858,7 +1223,7 @@ add({ id:'random-babies', cat:'classic', tag:'simulation', title:'Random Babies'
 });
 
 /* ===== Probability : Discrete Uniform Calculator ===== */
-add({ id:'discrete-uniform', cat:'prob', tag:'calculator', title:'Discrete Uniform Distribution',
+add({ id:'discrete-uniform', cat:'prob', diff:'intro', tag:'calculator', title:'Discrete Uniform Distribution',
   blurb:'Each value from a to b is equally likely. Explore probabilities and moments for the discrete uniform distribution.',
   build(host){
     const aI=UI.number({label:'Min value (a)',value:1,step:1,onchange:render});
@@ -918,7 +1283,7 @@ add({ id:'discrete-uniform', cat:'prob', tag:'calculator', title:'Discrete Unifo
 });
 
 /* ===== Probability : Binomial Distribution Calculator ===== */
-add({ id:'binomial-calc', cat:'prob', tag:'calculator', title:'Binomial Distribution',
+add({ id:'binomial-calc', cat:'prob', diff:'intro', tag:'calculator', title:'Binomial Distribution',
   blurb:'n independent Bernoulli trials each with success probability p. Compute probabilities and visualize the distribution.',
   build(host){
     const nI=UI.number({label:'Number of trials (n)',value:20,min:1,max:500,step:1,onchange:render});
@@ -961,7 +1326,7 @@ add({ id:'binomial-calc', cat:'prob', tag:'calculator', title:'Binomial Distribu
 });
 
 /* ===== Probability : Geometric Distribution ===== */
-add({ id:'geometric-calc', cat:'prob', tag:'calculator', title:'Geometric Distribution',
+add({ id:'geometric-calc', cat:'prob', diff:'inter', tag:'calculator', title:'Geometric Distribution',
   blurb:'Number of Bernoulli trials until the first success. P(X=k) = (1−p)^(k−1) · p.',
   build(host){
     const pI=UI.number({label:'Success probability (p)',value:0.3,min:0.001,max:1,step:0.01,onchange:render});
@@ -1001,7 +1366,7 @@ add({ id:'geometric-calc', cat:'prob', tag:'calculator', title:'Geometric Distri
 });
 
 /* ===== Probability : Negative Binomial Distribution ===== */
-add({ id:'neg-binomial-calc', cat:'prob', tag:'calculator', title:'Negative Binomial Distribution',
+add({ id:'neg-binomial-calc', cat:'prob', diff:'inter', tag:'calculator', title:'Negative Binomial Distribution',
   blurb:'Number of trials until the r-th success. Generalizes the geometric distribution.',
   build(host){
     const rI=UI.number({label:'Number of successes (r)',value:3,min:1,step:1,onchange:render});
@@ -1047,7 +1412,7 @@ add({ id:'neg-binomial-calc', cat:'prob', tag:'calculator', title:'Negative Bino
 });
 
 /* ===== Probability : Hypergeometric Distribution ===== */
-add({ id:'hypergeometric-calc', cat:'prob', tag:'calculator', title:'Hypergeometric Distribution',
+add({ id:'hypergeometric-calc', cat:'prob', diff:'adv', tag:'calculator', title:'Hypergeometric Distribution',
   blurb:'Draw n items without replacement from a population of N with K successes. How many successes do you get?',
   build(host){
     const NI=UI.number({label:'Population size (N)',value:50,min:1,step:1,onchange:render});
@@ -1094,7 +1459,7 @@ add({ id:'hypergeometric-calc', cat:'prob', tag:'calculator', title:'Hypergeomet
 });
 
 /* ===== Probability : Poisson Distribution ===== */
-add({ id:'poisson-calc', cat:'prob', tag:'calculator', title:'Poisson Distribution',
+add({ id:'poisson-calc', cat:'prob', diff:'inter', tag:'calculator', title:'Poisson Distribution',
   blurb:'Count of rare events in a fixed interval. P(X=k) = e^{-λ} λ^k / k!',
   build(host){
     const lambdaI=UI.number({label:'Rate (λ)',value:4,min:0.01,step:0.1,onchange:render});
@@ -1136,7 +1501,7 @@ add({ id:'poisson-calc', cat:'prob', tag:'calculator', title:'Poisson Distributi
 });
 
 /* ===== Probability : Exponential Distribution ===== */
-add({ id:'exponential-calc', cat:'prob', tag:'calculator', title:'Exponential Distribution',
+add({ id:'exponential-calc', cat:'prob', diff:'inter', tag:'calculator', title:'Exponential Distribution',
   blurb:'Time between Poisson events. Continuous, memoryless. f(x) = λe^{-λx}.',
   build(host){
     const lambdaI=UI.number({label:'Rate (λ)',value:1,min:0.001,step:0.1,onchange:render});
@@ -1174,7 +1539,7 @@ add({ id:'exponential-calc', cat:'prob', tag:'calculator', title:'Exponential Di
 });
 
 /* ===== Probability : Gamma / Erlang Distribution ===== */
-add({ id:'gamma-calc', cat:'prob', tag:'calculator', title:'Gamma & Erlang Distribution',
+add({ id:'gamma-calc', cat:'prob', diff:'adv', tag:'calculator', title:'Gamma & Erlang Distribution',
   blurb:'Sum of k independent Exponential(λ) random variables. Integer k gives Erlang; real k gives Gamma.',
   build(host){
     const kI=UI.number({label:'Shape (k / α)',value:3,min:0.1,step:0.1,onchange:render});
@@ -1223,7 +1588,8 @@ add({ id:'gamma-calc', cat:'prob', tag:'calculator', title:'Gamma & Erlang Distr
 });
 
 /* ===== Multiple Variables : Joint PDF Visualizer ===== */
-add({ id:'joint-pdf', cat:'multi', tag:'interactive', title:'Joint Probability Density — Visualizer',
+add({ id:'joint-pdf', cat:'multi', tag:'interactive', title:'Joint Probability Density — Visualizer', diff:'adv',
+  questions:['Verify that your PDF integrates to 1 over the region — the tool shows ∫∫f dxdy.','Compare Cov(X,Y) for f(x,y)=xy vs f(x,y)=1 (uniform). What does the sign tell you?','What event probability would you compute to find P(X+Y < 2)?'],
   blurb:'Enter a joint PDF f(x,y), define bounds, and compute P(X<a, Y≥b) or any rectangular event. The density is shaded on the plot.',
   build(host){
     const fTA=UI.textarea({label:'f(x,y) =',value:'(1/4)*x*y',hint:'Use x, y. Must integrate to 1 over the region. E.g. (1/4)*x*y, 6*x*y^2',onchange:()=>{}});
@@ -1333,7 +1699,8 @@ add({ id:'joint-pdf', cat:'multi', tag:'interactive', title:'Joint Probability D
 });
 
 /* ===== Multiple Variables : Linear Combinations & CLT ===== */
-add({ id:'linear-comb', cat:'multi', tag:'simulation', title:'Linear Combinations & Central Limit Theorem',
+add({ id:'linear-comb', cat:'multi', tag:'simulation', title:'Linear Combinations & Central Limit Theorem', diff:'inter',
+  questions:['Start with n=1 and slowly increase. At what n does the distribution start looking normal?','Does the CLT work faster for some distributions than others? Try Bernoulli vs. Exponential.','Change from Average to Sum. How does the spread change with n?'],
   blurb:'Add n i.i.d. random variables from different distributions. Watch the sum/average converge to normal as n grows — the CLT in action.',
   build(host){
     let dist='uniform', means=[];
@@ -1400,7 +1767,8 @@ add({ id:'linear-comb', cat:'multi', tag:'simulation', title:'Linear Combination
 });
 
 /* ===== Classics : CLT Multi-Distribution Demo ===== */
-add({ id:'clt-demo', cat:'classic', tag:'simulation', title:'Central Limit Theorem — Live Demo',
+add({ id:'clt-demo', cat:'classic', tag:'simulation', title:'Central Limit Theorem — Live Demo', diff:'intro',
+  questions:['Which distribution requires the largest n before the sampling distribution looks normal?','Compare the population distribution (top) to the sampling distribution (bottom). What always changes?','What happens to the spread of the sampling distribution as n increases?'],
   blurb:'Choose one or more source distributions, pick a sample size, and watch the sampling distribution of the mean become normal as n grows.',
   build(host){
     const distSel=UI.select({label:'Source distribution',options:[
@@ -1469,7 +1837,8 @@ add({ id:'clt-demo', cat:'classic', tag:'simulation', title:'Central Limit Theor
 });
 
 /* ===== Classics : One-Way ANOVA Simulation ===== */
-add({ id:'anova-sim', cat:'classic', tag:'simulation', title:'One-Way ANOVA Simulation',
+add({ id:'anova-sim', cat:'classic', tag:'simulation', title:'One-Way ANOVA Simulation', diff:'adv',
+  questions:['Set all group means equal to 50 and run the simulation. What do you expect for the F statistic?','Keep the same means but double the SD. How does the F statistic and p-value change?','Why does ANOVA compare variance between groups to variance within groups?'],
   blurb:'Simulate data under user-defined group parameters, run a one-way ANOVA F-test, visualize the group distributions, and interpret the results.',
   build(host){
     const nG=UI.slider({label:'Number of groups',min:2,max:5,value:3,fmt:v=>v,oninput:()=>{buildGroupInputs();run();}});
@@ -1521,11 +1890,23 @@ add({ id:'anova-sim', cat:'classic', tag:'simulation', title:'One-Way ANOVA Simu
       chF.shade(x=>fPDF(x,df1,df2),Math.max(0,F),xMax,hexA(COL.coral,.3));
       chF.curve(x=>fPDF(x,df1,df2),COL.classic,2.5); chF.vline(F,COL.coral,2.5); chF.marker(F,'F='+M.round(F,2),COL.coral);
       const sig=pVal<0.001?'p < 0.001 (highly significant)':pVal<0.01?`p = ${M.round(pVal,4)} (very significant)`:pVal<0.05?`p = ${M.round(pVal,4)} (significant)`:pVal<0.1?`p = ${M.round(pVal,4)} (marginal):`:`p = ${M.round(pVal,4)} (not significant)`;
+      // Tukey HSD post-hoc
+      let tukeyHTML='';
+      if(pVal<0.05){
+        const q_crit_approx=Math.sqrt(2)*M.normInv(1-0.05/g/(g-1)/2); // approx Studentized range
+        const hsd=q_crit_approx*Math.sqrt(msWithin/n);
+        const pairs=[];
+        for(let i=0;i<g;i++) for(let j=i+1;j<g;j++){
+          const diff=Math.abs(M.mean(groups[i])-M.mean(groups[j]));
+          pairs.push(`G${i+1} vs G${j+1}: |Δ| = ${M.round(diff,2)} ${diff>hsd?'<b style="color:var(--c-infer)">significant</b>':'not significant'}`);
+        }
+        tukeyHTML=`<br><b>Tukey HSD post-hoc (HSD ≈ ${M.round(hsd,3)}):</b><br>${pairs.map(p=>`• ${p}`).join('<br>')}`;
+      }
       interp.innerHTML=`<b>What ANOVA tests:</b> H₀: all group means are equal. H₁: at least one differs.<br>
         <b>F = MS_between / MS_within = ${M.round(msBetween,2)} / ${M.round(msWithin,2)} = ${M.round(F,4)}.</b><br>
         MS_between measures variation <em>between</em> group means; MS_within measures variation <em>within</em> groups (pure noise).<br>
         <b>Large F</b> → group means are far apart relative to within-group spread → evidence against H₀.<br>
-        <b>${sig}.</b> ${pVal<0.05?'Reject H₀ — there is significant evidence that at least one group mean differs.':'Fail to reject H₀ — insufficient evidence of a difference between group means at α = 0.05.'}<br>
+        <b>${sig}.</b> ${pVal<0.05?'Reject H₀ — there is significant evidence that at least one group mean differs.':'Fail to reject H₀ — insufficient evidence of a difference between group means at α = 0.05.'}${tukeyHTML}<br>
         <em>Note: ANOVA assumes equal variances and approximately normal data within groups.</em>`;
     }
     buildGroupInputs(); run();
@@ -1533,6 +1914,8 @@ add({ id:'anova-sim', cat:'classic', tag:'simulation', title:'One-Way ANOVA Simu
 });
 
 /* --------------------- (4) CATALOG RENDERING ------------------------ */
+const DIFF_LABEL={intro:'Intro',inter:'Intermediate',adv:'Advanced'};
+const DIFF_CLASS={intro:'diff-intro',inter:'diff-inter',adv:'diff-adv'};
 function renderCatalog(){
   const root=document.getElementById('catalog'); root.innerHTML='';
   const nav=document.getElementById('topnav'); nav.innerHTML='';
@@ -1540,18 +1923,40 @@ function renderCatalog(){
   Object.entries(CATS).forEach(([key,cat])=>{
     const items=APPLETS.filter(a=>a.cat===key); if(!items.length)return;
     const a=document.createElement('a'); a.href='#'+key; a.textContent=cat.name; nav.appendChild(a);
-    const sec=document.createElement('section'); sec.className='section'; sec.id=key; sec.style.setProperty('--cat',cat.color);
+    const sec=document.createElement('section'); sec.className='section'; sec.id='sec-'+key; sec.style.setProperty('--cat',cat.color);
     const head=document.createElement('div'); head.className='sec-head';
     head.innerHTML=`<span class="num">${cat.n}</span><h2>${cat.name}</h2><span class="desc">${cat.desc}</span>`;
-    const grid=document.createElement('div'); grid.className='grid';
+    const grid=document.createElement('div'); grid.className='grid'; grid.id='grid-'+key;
     items.forEach(ap=>{
-      const card=document.createElement('button'); card.className='card'; card.style.setProperty('--cat',cat.color);
-      card.innerHTML=`<span class="tag">${ap.tag}</span><span class="ttl">${ap.title}</span><span class="blurb">${ap.blurb}</span>
+      const dc=DIFF_CLASS[ap.diff||'intro']||'diff-intro';
+      const dl=DIFF_LABEL[ap.diff||'intro']||'Intro';
+      const card=document.createElement('button'); card.className='card';
+      card.dataset.title=(ap.title+' '+ap.blurb+' '+ap.tag).toLowerCase();
+      card.dataset.cat=key;
+      card.style.setProperty('--cat',cat.color);
+      card.innerHTML=`<div style="display:flex;align-items:center;gap:6px;"><span class="tag">${ap.tag}</span><span class="diff ${dc}">${dl}</span></div>
+        <span class="ttl">${ap.title}</span><span class="blurb">${ap.blurb}</span>
         <svg class="go" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M13 6l6 6-6 6"/></svg>`;
       card.onclick=()=>goApplet(ap.id); grid.appendChild(card);
     });
     sec.append(head,grid); root.appendChild(sec);
   });
+}
+function filterCatalog(q){
+  q=q.toLowerCase().trim();
+  let anyVisible=false;
+  document.querySelectorAll('#catalog .card').forEach(card=>{
+    const match=!q||card.dataset.title.includes(q);
+    card.style.display=match?'':'none';
+    if(match)anyVisible=true;
+  });
+  document.querySelectorAll('#catalog .section').forEach(sec=>{
+    const key=sec.id.replace('sec-','');
+    const grid=document.getElementById('grid-'+key);
+    const hasVisible=grid&&[...grid.querySelectorAll('.card')].some(c=>c.style.display!=='none');
+    sec.style.display=hasVisible?'':'none';
+  });
+  document.getElementById('searchEmpty').style.display=anyVisible?'none':'block';
 }
 
 /* ------------------------- (5) ROUTER ------------------------------- */
@@ -1559,6 +1964,54 @@ const homeEl=document.getElementById('home'), viewEl=document.getElementById('ap
 function goHome(){ location.hash=''; showHome(); }
 function showHome(){ viewEl.style.display='none'; homeEl.style.display='block'; }
 function goApplet(id){ location.hash='/'+id; }
+
+// Dark mode
+let _dark = localStorage.getItem('sl-dark')==='1' || (localStorage.getItem('sl-dark')===null && window.matchMedia('(prefers-color-scheme:dark)').matches);
+function applyDark(d){ document.documentElement.style.setProperty('color-scheme', d?'dark':'light'); document.body.classList.toggle('dark-override',d);
+  document.getElementById('darkIcon').setAttribute('d', d ? 'M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M17.657 17.657l-.707-.707M6.343 6.343l-.707-.707M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z' : 'M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z'); }
+function toggleDark(){ _dark=!_dark; localStorage.setItem('sl-dark',_dark?'1':'0'); applyDark(_dark); }
+
+// Override dark mode via CSS class (needed since we can't redefine prefers-color-scheme)
+const darkStyle=document.createElement('style');
+darkStyle.id='dark-override-style';
+document.head.appendChild(darkStyle);
+function applyDark(d){
+  _dark=d;
+  const icon=document.getElementById('darkIcon');
+  if(d){
+    darkStyle.textContent=`body.dark-override{--paper:#18161F;--paper-2:#211E2E;--ink:#F0EEF8;--ink-soft:#B8B4CC;--ink-faint:#6B6780;--line:#2E2B3E;--grid:#221F30;--white:#211E2E;--shadow-sm:0 1px 2px rgba(0,0,0,.3);--shadow-md:0 4px 16px rgba(0,0,0,.4);--shadow-lg:0 12px 32px rgba(0,0,0,.5);}
+    body.dark-override{background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);}
+    body.dark-override .topbar{background:rgba(24,22,31,.88);}
+    body.dark-override .ctrl input[type=number],body.dark-override .ctrl input[type=text],body.dark-override .ctrl select,body.dark-override .ctrl textarea{background:var(--paper-2);border-color:var(--line);color:var(--ink);}
+    body.dark-override .abtn{background:var(--paper-2);color:var(--ink);}
+    body.dark-override .back{background:var(--paper-2);}
+    body.dark-override .search-box{background:var(--paper-2);}`;
+    icon.setAttribute('d','M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M17.657 17.657l-.707-.707M6.343 6.343l-.707-.707M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z');
+  } else {
+    darkStyle.textContent='';
+    icon.setAttribute('d','M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z');
+  }
+  document.body.classList.toggle('dark-override',d);
+}
+function toggleDark(){ _dark=!_dark; localStorage.setItem('sl-dark',_dark?'1':'0'); applyDark(_dark); }
+applyDark(_dark);
+
+// Share current URL
+function shareApplet(){
+  const btn=document.getElementById('shareBtn');
+  navigator.clipboard.writeText(location.href).then(()=>{
+    btn.textContent='✓ Link copied!'; btn.classList.add('copied');
+    setTimeout(()=>{ btn.textContent='Share ↗'; btn.classList.remove('copied'); },2000);
+  }).catch(()=>{ window.prompt('Copy this link:',location.href); });
+}
+
+// Keyboard shortcuts
+document.addEventListener('keydown',e=>{
+  if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'||e.target.tagName==='SELECT')return;
+  if(e.key==='Escape'&&viewEl.style.display==='block') goHome();
+  if(e.key==='/'){ e.preventDefault(); document.getElementById('searchInput')?.focus(); goHome(); }
+});
+
 function openApplet(id){
   const ap=APPLETS.find(a=>a.id===id); if(!ap){ showHome(); return; }
   const cat=CATS[ap.cat];
@@ -1567,12 +2020,23 @@ function openApplet(id){
   const w=document.createElement('div'); w.className='wrap';
   const top=document.createElement('div'); top.className='app-top';
   top.innerHTML=`<button class="back" onclick="goHome()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>All tools</button>
-    <span class="app-cat" style="background:${cat.color}">${cat.name}</span>`;
+    <span class="app-cat" style="background:${cat.color}">${cat.name}</span>
+    <button class="share-btn" id="shareBtn" onclick="shareApplet()">Share ↗</button>
+    <span class="kbd" style="margin-left:auto"><kbd>Esc</kbd> to go back</span>`;
   const head=document.createElement('div'); head.className='app-head';
-  head.innerHTML=`<h2>${ap.title}</h2><p>${ap.blurb}</p>`;
+  // Guiding questions
+  const guidingHTML = ap.questions ? `<div class="guiding"><div class="q-title">🎯 Think about these as you explore</div><ol>${ap.questions.map(q=>`<li>${q}</li>`).join('')}</ol></div>` : '';
+  head.innerHTML=`<h2>${ap.title}</h2><p>${ap.blurb}</p>${guidingHTML}`;
   const hostBox=document.createElement('div');
   w.append(top,head,hostBox); viewEl.appendChild(w);
   try{ ap.build(hostBox); }catch(e){ hostBox.innerHTML=`<div class="panel">This tool hit an error: <code>${e.message}</code></div>`; console.error(e); }
+  // Enter key → trigger primary button
+  hostBox.addEventListener('keydown',e=>{
+    if(e.key==='Enter'&&e.target.tagName!=='BUTTON'&&e.target.tagName!=='TEXTAREA'){
+      const primaryBtns=hostBox.querySelectorAll('.abtn.primary');
+      if(primaryBtns.length===1){ e.preventDefault(); primaryBtns[0].click(); }
+    }
+  });
   window.scrollTo(0,0);
 }
 function route(){ const h=location.hash; if(h.startsWith('#/')) openApplet(decodeURIComponent(h.slice(2))); else showHome(); }
@@ -1606,6 +2070,18 @@ renderCatalog();
 heroAnim();
 route();
 window.addEventListener('resize',()=>{ if(viewEl.style.display==='block'){ const id=location.hash.slice(2); openApplet(decodeURIComponent(id)); } });
+
+// Add keyboard hint to search area
+const searchWrap=document.querySelector('.search-wrap');
+if(searchWrap){
+  const hint=document.createElement('div');
+  hint.className='kbd'; hint.style.cssText='margin-top:8px;display:inline-flex;';
+  hint.innerHTML='<kbd>/</kbd> to search &nbsp; <kbd>Esc</kbd> to go back';
+  searchWrap.appendChild(hint);
+}
+
+// Restore dark mode preference
+applyDark(_dark);
 </script>
 </body>
 </html>
