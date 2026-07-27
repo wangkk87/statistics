@@ -118,6 +118,8 @@ canvas{display:block;}
 .sec-head h2{font-family:var(--display);font-weight:600;font-size:1.7rem;letter-spacing:-.01em;margin:0;display:flex;align-items:center;gap:12px;}
 .sec-head h2::before{content:"";width:13px;height:13px;border-radius:4px;background:var(--cat,var(--ink));}
 .sec-head .desc{font-size:.9rem;color:var(--ink-soft);margin-left:auto;max-width:34ch;text-align:right;}
+.sec-fact{display:flex;gap:10px;align-items:flex-start;background:linear-gradient(135deg,rgba(0,0,0,.02),rgba(0,0,0,.005));border:1px dashed var(--line);border-left:3px solid var(--cat,var(--ink));border-radius:0 var(--r-sm) var(--r-sm) 0;padding:11px 16px;margin:14px 0 20px;font-size:.86rem;color:var(--ink-soft);}
+.sec-fact .fact-label{font-family:var(--mono);font-size:.66rem;letter-spacing:.08em;text-transform:uppercase;color:var(--cat,var(--ink));font-weight:700;white-space:nowrap;flex:none;padding-top:1px;}
 
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(248px,1fr));gap:16px;}
 .card{
@@ -467,14 +469,41 @@ function histogram(values,nbins,lo,hi){ lo=lo??M.min(values); hi=hi??M.max(value
 function niceTicks(min,max,n=6){ const span=max-min||1; const step0=span/n; const mag=Math.pow(10,Math.floor(Math.log10(step0)));
   const norm=step0/mag; let step; if(norm<1.5)step=1; else if(norm<3)step=2; else if(norm<7)step=5; else step=10; step*=mag;
   const t=[]; let v=Math.ceil(min/step)*step; while(v<=max+1e-9){ t.push(M.round(v,6)); v+=step; } return t; }
+/* ---- tiny polynomial least-squares fit (normal equations + Gaussian elimination) ---- */
+function solveLinear(A,b){
+  const n=b.length; const Mx=A.map((row,i)=>[...row,b[i]]);
+  for(let col=0; col<n; col++){
+    let piv=col; for(let r=col+1;r<n;r++) if(Math.abs(Mx[r][col])>Math.abs(Mx[piv][col])) piv=r;
+    [Mx[col],Mx[piv]]=[Mx[piv],Mx[col]];
+    if(Math.abs(Mx[col][col])<1e-12) Mx[col][col]=1e-12;
+    for(let r=0;r<n;r++){ if(r===col)continue; const f=Mx[r][col]/Mx[col][col]; for(let c=col;c<=n;c++) Mx[r][c]-=f*Mx[col][c]; }
+  }
+  return Mx.map((row,i)=>row[n]/row[i]);
+}
+function polyfit(xs,ys,degree){
+  const p=degree+1;
+  const XtX=Array.from({length:p},()=>new Array(p).fill(0)); const Xty=new Array(p).fill(0);
+  for(let i=0;i<xs.length;i++){
+    const pw=new Array(p); pw[0]=1; for(let k=1;k<p;k++) pw[k]=pw[k-1]*xs[i];
+    for(let a=0;a<p;a++){ Xty[a]+=pw[a]*ys[i]; for(let b=0;b<p;b++) XtX[a][b]+=pw[a]*pw[b]; }
+  }
+  return solveLinear(XtX,Xty);
+}
+function evalPoly(coeffs,x){ let y=0,pw=1; for(let k=0;k<coeffs.length;k++){ y+=coeffs[k]*pw; pw*=x; } return y; }
 /* ----------------------- (3) UI + REGISTRY -------------------------- */
 const CATS = {
-  data:    {name:'Data Analysis',          color:COL.data,     n:'01', desc:'Describe and explore distributions and relationships.'},
-  sampling:{name:'Sampling Distributions',  color:COL.sampling, n:'02', desc:'Repeat the random process and watch the pattern emerge.'},
-  prob:    {name:'Probability',             color:COL.prob,     n:'03', desc:'Chance, counting, and the long run.'},
-  infer:   {name:'Statistical Inference',   color:COL.infer,    n:'04', desc:'Randomization tests, bootstraps, and what the data support.'},
-  multi:   {name:'Multiple Variables',      color:COL.multi,    n:'05', desc:'Compare groups and model several variables at once.'},
-  classic: {name:'Classics & Games',        color:COL.classic,  n:'06', desc:'Famous puzzles that build statistical intuition.'},
+  data:    {name:'Data Analysis',          color:COL.data,     n:'01', desc:'Describe and explore distributions and relationships.',
+    fact:'Anscombe\'s Quartet (1973): four datasets share the same mean, variance, correlation, and regression line — yet look completely different when plotted. Summary statistics can hide a lot; always plot your data.'},
+  sampling:{name:'Sampling Distributions',  color:COL.sampling, n:'02', desc:'Repeat the random process and watch the pattern emerge.',
+    fact:'A "sampling distribution" describes a statistic (like a mean) computed over and over from repeated samples — it is a distribution of summaries, not of raw data. Confusing the two is one of the most common stumbling blocks in intro statistics.'},
+  prob:    {name:'Probability',             color:COL.prob,     n:'03', desc:'Chance, counting, and the long run.',
+    fact:'The Poisson distribution traces back to Ladislaus Bortkiewicz\'s 1898 study of Prussian cavalry soldiers killed by horse kicks each year — a rare, random event counted over many army corps and years.'},
+  infer:   {name:'Statistical Inference',   color:COL.infer,    n:'04', desc:'Randomization tests, bootstraps, and what the data support.',
+    fact:'A p-value is the probability of data this extreme (or more) IF the null hypothesis were true — it is NOT the probability that the null hypothesis itself is true. Mixing those two up is one of the most persistent errors in published research.'},
+  multi:   {name:'Multiple Variables',      color:COL.multi,    n:'05', desc:'Compare groups and model several variables at once.',
+    fact:'Simpson\'s Paradox: a trend can appear in every individual group of data yet reverse completely once the groups are combined — famously seen in the 1973 UC Berkeley graduate-admissions "bias" that vanished department by department.'},
+  classic: {name:'Classics & Games',        color:COL.classic,  n:'06', desc:'Famous puzzles that build statistical intuition.',
+    fact:'When Marilyn vos Savant correctly explained the Monty Hall problem in 1990, thousands of readers — including many PhD mathematicians — wrote in insisting she was wrong. Simulate it yourself below and see who was right.'},
 };
 const APPLETS = [];
 const add = (a)=>APPLETS.push(a);
@@ -514,7 +543,8 @@ const UI = {
   plotCard(title,h=null){ const w=document.createElement('div'); w.className='plot-card';
     w.innerHTML=`<div class="plot-title">${title}</div><div class="plotwrap"><canvas></canvas></div>`;
     const cv=w.querySelector('canvas'); w.canvas=cv; w.chart=()=>new Chart(cv,h?{cssH:h}:{}); w.setTitle=(t)=>w.querySelector('.plot-title').textContent=t; return w; },
-  note(html){ const w=document.createElement('div'); w.className='note'; w.innerHTML=html; return w; }
+  note(html){ const w=document.createElement('div'); w.className='note'; w.innerHTML=html; return w; },
+  divider(label){ const w=document.createElement('div'); w.style.cssText='font-family:var(--mono);font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);margin-top:8px;border-top:1px dashed var(--line);padding-top:12px;'; w.textContent=label; return w; }
 };
 /* ===== Data Analysis : Descriptive Statistics ===== */
 add({ id:'descriptive', cat:'data', tag:'explore', title:'Descriptive Statistics', diff:'intro',
@@ -627,6 +657,92 @@ add({ id:'least-squares', cat:'data', tag:'interactive', title:'Least Squares Re
     render();
   }
 });
+
+/* ===== Data Analysis : The Four Moments of a Distribution ===== */
+add({ id:'four-moments', cat:'data', tag:'interactive', title:'The Four Moments of a Distribution', diff:'inter',
+  questions:['Which moment changes if you add 10 to every value in the sample? Which moments stay exactly the same?',
+    'Can two distributions share the same skewness but look very different from each other?',
+    'The bimodal mixture clearly looks "different" from a bell curve — so why is its excess kurtosis negative rather than positive?'],
+  blurb:'Draw samples from six shapes and watch how the mean, variance, skewness, and kurtosis capture — or fail to capture — what your eyes see.',
+  build(host){
+    const famSel=UI.select({label:'Distribution shape',options:[
+      {label:'Normal (reference)',value:'normal'},
+      {label:'Right-skewed (exponential)',value:'rightskew'},
+      {label:'Left-skewed (mirror image)',value:'leftskew'},
+      {label:'Heavy-tailed (t distribution)',value:'heavytail'},
+      {label:'Light-tailed (uniform)',value:'lighttail'},
+      {label:'Bimodal mixture',value:'bimodal'},
+    ],value:'normal',onchange:resample});
+    const dfS=UI.slider({label:'Degrees of freedom (t only)',min:1,max:30,value:4,fmt:v=>v,oninput:resample});
+    const nS=UI.slider({label:'Sample size (n)',min:50,max:3000,value:900,fmt:v=>v,oninput:resample});
+    const overlaySeg=UI.seg({label:'Normal reference curve',options:[{label:'Off',value:0},{label:'On',value:1}],value:1,onchange:draw});
+    const btns=UI.buttons([{label:'Draw new sample',primary:true,onclick:resample}]);
+    const stats=UI.statsBox();
+    const hist=UI.plotCard('Sample distribution (density scale)',260);
+    const interp=UI.note('');
+    host.appendChild(UI.appGrid([famSel,dfS,nS,overlaySeg,btns,UI.note('The dashed curve is a normal distribution with the *same* mean and SD as your sample — useful for judging skew (asymmetry) and kurtosis (peakedness / tail weight) by eye.')],[stats,hist,interp]));
+
+    function gen(fam,n,df){
+      const out=[];
+      for(let i=0;i<n;i++){
+        let x;
+        if(fam==='normal') x=M.normal(0,1);
+        else if(fam==='rightskew') x=-Math.log(Math.random());
+        else if(fam==='leftskew') x=3+Math.log(Math.random());
+        else if(fam==='heavytail'){ let chi=0; for(let k=0;k<df;k++){ const z=M.randn(); chi+=z*z; } const z0=M.randn(); x=z0/Math.sqrt(chi/df); }
+        else if(fam==='lighttail') x=(Math.random()*2-1)*Math.sqrt(3);
+        else x=(Math.random()<0.5? M.normal(-2,0.6):M.normal(2,0.6));
+        out.push(x);
+      }
+      return out;
+    }
+    function sampleMoments(data){
+      const n=data.length, mean=M.mean(data);
+      let m2=0,m3=0,m4=0;
+      data.forEach(x=>{ const d=x-mean; m2+=d*d; m3+=d*d*d; m4+=d*d*d*d; });
+      m2/=n; m3/=n; m4/=n;
+      const sd=Math.sqrt(m2);
+      const skew=m2>0? m3/Math.pow(m2,1.5):0;
+      const kurt=m2>0? m4/(m2*m2):0;
+      return {n,mean,variance:M.variance(data),sd,skew,kurt,excess:kurt-3};
+    }
+    const NOTES={
+      normal:'<b>Normal (reference) shape:</b> symmetric, skewness ≈ 0, excess kurtosis ≈ 0 by construction — this is the benchmark every other shape below is compared against.',
+      rightskew:'<b>Right (positive) skew:</b> a long tail stretches to the right, so the mean gets pulled above the median. Skewness comes out <b>positive</b>.',
+      leftskew:'<b>Left (negative) skew:</b> the mirror image — a long tail stretches left, pulling the mean below the median. Skewness is <b>negative</b>.',
+      heavytail:'<b>Heavy tails (leptokurtic):</b> lowering the degrees of freedom on a t-distribution makes extreme values far more common than a normal curve predicts. Excess kurtosis is <b>positive</b> — watch it shrink toward 0 as df grows large.',
+      lighttail:'<b>Light tails (platykurtic):</b> a uniform distribution has no tails at all beyond its bounds and a flat middle. Excess kurtosis is <b>negative</b>, typically around −1.2.',
+      bimodal:'<b>Bimodal mixture:</b> two separated bumps. Skewness ≈ 0 by symmetry — but notice excess kurtosis is <b>negative</b>, not positive. Kurtosis measures tail weight and central peakedness, <em>not</em> "how many humps" a distribution has — a common misconception!'
+    };
+    let data=[];
+    function resample(){ data=gen(famSel.get(),Math.round(nS.get()),Math.round(dfS.get())); draw(); }
+    function draw(){
+      const mo=sampleMoments(data);
+      stats.set([
+        {k:'n',v:mo.n},
+        {k:'1st: mean',v:M.round(mo.mean,3),accent:1},
+        {k:'2nd: variance',v:M.round(mo.variance,3),accent:1},
+        {k:'2nd: std. dev.',v:M.round(mo.sd,3)},
+        {k:'3rd: skewness',v:M.round(mo.skew,3),accent:1},
+        {k:'4th: kurtosis',v:M.round(mo.kurt,3)},
+        {k:'4th: excess kurt.',v:M.round(mo.excess,3),accent:1},
+      ]);
+      const lo=M.min(data),hi=M.max(data),pad=(hi-lo)*0.06||1;
+      const nb=Math.min(50,Math.max(12,Math.round(Math.sqrt(data.length))));
+      const hb=histogram(data,nb,lo-pad,hi+pad); const bw=hb[0].hi-hb[0].lo; const total=data.length;
+      const props=hb.map(b=>b.count/total/bw);
+      const maxD=Math.max(...props, overlaySeg.get()==='1'? M.normPdf(mo.mean,mo.mean,mo.sd):0);
+      const ch=hist.chart();
+      ch.setX(lo-pad,hi+pad).setY(0,maxD*1.18); ch.clear();
+      ch.bars(hb.map((b,i)=>({lo:b.lo,hi:b.hi,count:props[i]})),hexA(COL.data,.78)); ch.grid(); ch.axisX(niceTicks(lo-pad,hi+pad,6));
+      if(overlaySeg.get()==='1') ch.curve(x=>M.normPdf(x,mo.mean,mo.sd),COL.coral,2.5,[5,3]);
+      ch.marker(mo.mean,'mean',COL.coral);
+      interp.innerHTML=NOTES[famSel.get()];
+    }
+    resample();
+  }
+});
+
 /* ===== Sampling : Reese's Pieces (sampling distribution of a proportion) ===== */
 add({ id:'reeses', cat:'sampling', tag:'simulation', title:"Reese's Pieces — Sample Proportions", diff:'intro',
   questions:['Double the sample size n. What happens to the width of the sampling distribution?','What shape does the distribution approach, and when does it fail to be bell-shaped?','Why does the mean of p̂ always equal π, no matter how many samples you take?'],
@@ -991,6 +1107,180 @@ add({ id:'two-t-test', cat:'infer', tag:'calculator', title:'Two-Sample t-Test',
         ${ciLo>0?'The entire CI is above 0 → Group A appears meaningfully higher.':ciHi<0?'The entire CI is below 0 → Group B appears meaningfully higher.':'CI contains 0 → consistent with no difference.'}`;
     }
     draw();
+  }
+});
+
+/* ===== Inference : What Does p < 0.05 Really Mean? ===== */
+add({ id:'pvalue-meaning', cat:'infer', tag:'simulation', title:'What Does p < 0.05 Really Mean?', diff:'inter',
+  questions:['When the true effect is set to exactly 0, what shape do you expect the histogram of p-values to have?',
+    'Set a small but nonzero true effect. What happens to the proportion of p < α as you increase the sample size n?',
+    'Does a p-value tell you the probability that H₀ is true? What is it actually a probability of?'],
+  blurb:'Simulate hundreds of repeated experiments under a true effect size you control, and see what the resulting p-values actually look like — not what people assume they look like.',
+  build(host){
+    const effectS=UI.slider({label:'True effect (difference in means)',min:0,max:1.5,step:0.05,value:0,fmt:v=>v.toFixed(2),oninput:()=>reset()});
+    const nS=UI.slider({label:'Sample size per group (n)',min:5,max:200,value:20,fmt:v=>v,oninput:()=>reset()});
+    const alphaS=UI.slider({label:'Significance threshold α',min:0.01,max:0.10,step:0.01,value:0.05,fmt:v=>v.toFixed(2),oninput:draw});
+    const runBtns=UI.buttons([
+      {label:'Run 1 experiment',onclick:()=>runMany(1)},
+      {label:'Run 200 experiments',primary:true,onclick:()=>runMany(200)},
+      {label:'Reset',onclick:reset},
+    ]);
+    const stats=UI.statsBox();
+    const singlePlot=UI.plotCard('Most recent experiment: t distribution under H₀',200);
+    const histPlot=UI.plotCard('Histogram of p-values across all experiments run',240);
+    const interp=UI.note('Click "Run 200 experiments" to build up a distribution of p-values under the settings above.');
+    host.appendChild(UI.appGrid([effectS,nS,alphaS,runBtns],[stats,singlePlot,histPlot,interp]));
+
+    let pvals=[], lastT=null, lastDf=null;
+    function reset(){ pvals=[]; lastT=null; lastDf=null; draw(); }
+    function oneTrial(){
+      const eff=effectS.get(), n=Math.round(nS.get());
+      const A=Array.from({length:n},()=>M.normal(0,1));
+      const B=Array.from({length:n},()=>M.normal(eff,1));
+      const xA=M.mean(A),xB=M.mean(B),sA=M.sd(A),sB=M.sd(B);
+      const seA=sA*sA/n, seB=sB*sB/n, se=Math.sqrt(seA+seB);
+      const t=(xA-xB)/se;
+      const df=Math.pow(seA+seB,2)/(seA*seA/(n-1)+seB*seB/(n-1));
+      const p=2*(1-M.tCdf(Math.abs(t),df));
+      return {t,df,p};
+    }
+    function runMany(k){ for(let i=0;i<k;i++){ const r=oneTrial(); pvals.push(r.p); lastT=r.t; lastDf=r.df; } draw(); }
+    function draw(){
+      const alpha=alphaS.get();
+      const below=pvals.filter(p=>p<alpha).length;
+      const propBelow=pvals.length? below/pvals.length : 0;
+      const truthNull=effectS.get()===0;
+      stats.set([
+        {k:'experiments run',v:pvals.length},
+        {k:'p < '+alpha.toFixed(2),v:pvals.length? (propBelow*100).toFixed(1)+'%':'—',accent:1},
+        {k:truthNull?'H₀ is actually TRUE here':'H₀ is actually FALSE here',v:truthNull?'→ this % is the Type I error rate':'→ this % is the test\'s power'},
+      ]);
+      const sch=singlePlot.chart();
+      if(lastT==null){ sch.setX(-4,4).setY(0,0.42); sch.clear(); sch.grid(); sch.axisX(niceTicks(-4,4,8)); sch.curve(x=>M.tPdf(x,30),COL.infer,2); }
+      else {
+        const df=lastDf, pdf=x=>M.tPdf(x,df), peak=M.tPdf(0,df), at=Math.abs(lastT);
+        sch.setX(-5,5).setY(0,peak*1.2); sch.clear(); sch.grid(); sch.axisX(niceTicks(-5,5,10));
+        sch.shade(pdf,-5,-at,hexA(COL.infer,.3)); sch.shade(pdf,at,5,hexA(COL.infer,.3));
+        sch.curve(pdf,COL.infer,2.5); sch.vline(lastT,COL.coral,2.5); sch.marker(lastT,'t='+M.round(lastT,2),COL.coral);
+      }
+      const hch=histPlot.chart();
+      if(pvals.length){
+        const hb=histogram(pvals,20,0,1); const maxc=Math.max(...hb.map(b=>b.count));
+        hch.setX(0,1).setY(0,maxc*1.15); hch.clear(); hch.bars(hb,hexA(COL.data,.78)); hch.grid(); hch.axisX(niceTicks(0,1,10)); hch.vline(alpha,COL.coral,2,[4,3]);
+      } else { hch.setX(0,1).setY(0,1); hch.clear(); hch.grid(); hch.axisX(niceTicks(0,1,10)); }
+      interp.innerHTML = pvals.length? `<b>Out of ${pvals.length} simulated experiments</b>, ${below} (${(propBelow*100).toFixed(1)}%) came out with p < ${alpha.toFixed(2)}.<br>
+        ${truthNull? `The true effect is set to <b>0</b> — the null hypothesis is actually true here. In the long run, about <b>${(alpha*100).toFixed(0)}%</b> of experiments will cross the α = ${alpha.toFixed(2)} line purely by chance — that is exactly what α controls. It is a long-run frequency, <em>not</em> a statement about whether this one experiment made a mistake.` : `The true effect is set to <b>${effectS.get().toFixed(2)}</b> — the null hypothesis is actually false here. The proportion crossing the line is the test's <b>power</b> at this effect size and n. Try increasing n and watch power climb toward 1.`}<br>
+        <b>What a p-value really means:</b> assuming H₀ is exactly true, the probability of seeing a test statistic this extreme or more extreme, from sampling variability alone.<br>
+        <b>What it does NOT mean:</b> it is not the probability that H₀ is true, it is not the probability that you've made an error on this specific test, and a small p-value does not guarantee the effect is large or practically important — with a big enough n, even a tiny, unimportant effect can produce p < 0.05.`
+        : 'Click "Run 200 experiments" to build up a distribution of p-values under the settings above.';
+    }
+    draw();
+  }
+});
+
+/* ===== Inference : The Bias–Variance Tradeoff ===== */
+add({ id:'bias-variance', cat:'infer', tag:'simulation', title:'The Bias–Variance Tradeoff', diff:'adv',
+  questions:['Which quadrant of the target would a "biased but very consistent" instrument correspond to?',
+    'As you increase model flexibility (polynomial degree), why does bias go down while variance goes up?',
+    'Does the lowest total error always occur at the most flexible model? Where does it actually occur, and why?'],
+  blurb:'Two views of one idea: shots on a target show what "bias" and "variance" look like on their own, then fitting curves of increasing flexibility shows the classic U-shaped tradeoff between them.',
+  build(host){
+    /* ---- Part 1 : target practice ---- */
+    const biasS=UI.slider({label:'Bias (how far off-center)',min:0,max:3,step:0.1,value:0.3,fmt:v=>v.toFixed(1),oninput:drawTarget});
+    const varS=UI.slider({label:'Variance (how spread out)',min:0.1,max:2,step:0.1,value:0.3,fmt:v=>v.toFixed(1),oninput:drawTarget});
+    const nShotsS=UI.slider({label:'Number of shots',min:10,max:300,value:80,fmt:v=>v,oninput:drawTarget});
+    const presets=UI.buttons([
+      {label:'Low bias · Low var',onclick:()=>{biasS.set(0.2);varS.set(0.25);drawTarget();}},
+      {label:'Low bias · High var',onclick:()=>{biasS.set(0.2);varS.set(1.5);drawTarget();}},
+      {label:'High bias · Low var',onclick:()=>{biasS.set(2.2);varS.set(0.25);drawTarget();}},
+      {label:'High bias · High var',onclick:()=>{biasS.set(2.2);varS.set(1.5);drawTarget();}},
+    ]);
+    const newShotsBtn=UI.buttons([{label:'New shots',primary:true,onclick:drawTarget}]);
+    const targetStats=UI.statsBox();
+    const targetPlot=UI.plotCard('Target practice — each dot is one estimate',260);
+    const targetNote=UI.note('');
+
+    /* ---- Part 2 : model complexity ---- */
+    const degS=UI.slider({label:'Model flexibility (polynomial degree)',min:1,max:9,value:1,fmt:v=>v,oninput:drawComplexity});
+    const resampleBtn=UI.buttons([{label:'New random training data',primary:true,onclick:runExperiment}]);
+    const fitPlot=UI.plotCard('One fitted model vs. the truth',220);
+    const curvePlot=UI.plotCard('Bias² · Variance · Total error vs. flexibility',240);
+    const complexityNote=UI.note('');
+
+    host.appendChild(UI.appGrid(
+      [biasS,varS,nShotsS,presets,newShotsBtn, UI.divider('Model-fitting view'), degS,resampleBtn],
+      [targetPlot,targetStats,targetNote, UI.divider('From dartboard to curve-fitting'), fitPlot,curvePlot,complexityNote]
+    ));
+
+    function drawTarget(){
+      const bias=biasS.get(), sd=varS.get(), n=Math.round(nShotsS.get());
+      const shots=Array.from({length:n},()=>({x:bias+M.normal(0,sd), y:M.normal(0,sd)}));
+      const ch=targetPlot.chart(); const R=3.4;
+      ch.setX(-R,R).setY(-R,R); ch.clear();
+      const ctx=ch.ctx;
+      const rx=(r)=>Math.abs(ch.X(r)-ch.X(0)), ry=(r)=>Math.abs(ch.Y(r)-ch.Y(0));
+      [3,2.4,1.8,1.2,0.6].forEach((r,i)=>{ ctx.beginPath(); ctx.ellipse(ch.X(0),ch.Y(0),rx(r),ry(r),0,0,7); ctx.fillStyle=i%2===0? hexA(COL.infer,.10):hexA(COL.infer,.20); ctx.fill(); });
+      ctx.beginPath(); ctx.ellipse(ch.X(0),ch.Y(0),rx(0.3),ry(0.3),0,0,7); ctx.fillStyle=hexA(COL.coral,.9); ctx.fill();
+      shots.forEach(s=>{ ctx.beginPath(); ctx.arc(ch.X(s.x),ch.Y(s.y),3.4,0,7); ctx.fillStyle=hexA(COL.data,.75); ctx.fill(); });
+      const mx=M.mean(shots.map(s=>s.x)), my=M.mean(shots.map(s=>s.y));
+      ctx.strokeStyle=COL.ink; ctx.lineWidth=2.5;
+      ctx.beginPath(); ctx.moveTo(ch.X(mx)-7,ch.Y(my)-7); ctx.lineTo(ch.X(mx)+7,ch.Y(my)+7); ctx.moveTo(ch.X(mx)+7,ch.Y(my)-7); ctx.lineTo(ch.X(mx)-7,ch.Y(my)+7); ctx.stroke();
+      const biasEst=Math.hypot(mx,my);
+      const varEst=M.mean(shots.map(s=>(s.x-mx)**2+(s.y-my)**2));
+      const mse=biasEst*biasEst+varEst;
+      targetStats.set([
+        {k:'bias (✕ from bullseye)',v:M.round(biasEst,3),accent:1},
+        {k:'variance (spread around ✕)',v:M.round(varEst,3),accent:1},
+        {k:'bias² + variance ≈ MSE',v:M.round(mse,3)},
+      ]);
+      targetNote.innerHTML=`<b>Bias</b> = how far the <em>average</em> shot (✕) sits from the bullseye — a systematic offset, the same every time. <b>Variance</b> = how scattered the shots are around their own average — random noise that differs shot to shot. Total error (MSE) ≈ bias² + variance: both count against you, but for different reasons and with different fixes — bias calls for a better method or model, variance calls for more data or a simpler, steadier one.`;
+    }
+
+    const trueFn=(x)=>Math.sin(1.6*x);
+    let cache=null;
+    function runExperiment(){
+      const trainN=25, noiseSD=0.35, R=40, maxDeg=9;
+      const testXs=Array.from({length:25},(_,i)=>-3+6*i/24);
+      const bias2=[], variance=[], total=[], exampleByDeg=[];
+      for(let d=1; d<=maxDeg; d++){
+        const preds=testXs.map(()=>[]);
+        let firstTrainX=null, firstTrainY=null, firstCoeffs=null;
+        for(let r=0;r<R;r++){
+          const trainX=Array.from({length:trainN},()=> -3+6*Math.random());
+          const trainY=trainX.map(x=>trueFn(x)+M.normal(0,noiseSD));
+          const coeffs=polyfit(trainX.map(x=>x/3),trainY,d);
+          testXs.forEach((tx,j)=>preds[j].push(evalPoly(coeffs,tx/3)));
+          if(r===0){ firstTrainX=trainX; firstTrainY=trainY; firstCoeffs=coeffs; }
+        }
+        let b2sum=0,varsum=0;
+        testXs.forEach((tx,j)=>{ const truth=trueFn(tx); const avgPred=M.mean(preds[j]); b2sum+=(avgPred-truth)**2; varsum+=M.variance(preds[j]); });
+        bias2.push(b2sum/testXs.length); variance.push(varsum/testXs.length); total.push(bias2[d-1]+variance[d-1]+noiseSD*noiseSD);
+        exampleByDeg.push({trainX:firstTrainX,trainY:firstTrainY,coeffs:firstCoeffs});
+      }
+      cache={bias2,variance,total,exampleByDeg,noiseSD};
+      drawComplexity();
+    }
+    function drawComplexity(){
+      if(!cache) return;
+      const d=Math.round(degS.get());
+      const ex=cache.exampleByDeg[d-1];
+      const ch=fitPlot.chart();
+      ch.setX(-3,3).setY(-2,2); ch.clear(); ch.grid(); ch.axisX(niceTicks(-3,3,6)); ch.axisY(niceTicks(-2,2,4));
+      ch.curve(trueFn,COL.ink,1.5,[4,3]);
+      ch.curve(x=>evalPoly(ex.coeffs,x/3),COL.infer,2.5);
+      ch.points(ex.trainX,ex.trainY,hexA(COL.data,.7),3);
+      const cch=curvePlot.chart();
+      const degs=Array.from({length:cache.bias2.length},(_,i)=>i+1);
+      const maxY=Math.max(...cache.total)*1.15;
+      cch.setX(1,degs.length).setY(0,maxY); cch.clear(); cch.grid(); cch.axisX(niceTicks(1,degs.length,degs.length-1)); cch.axisY(niceTicks(0,maxY,5));
+      const plotLine=(arr,color)=>{ for(let i=0;i<arr.length-1;i++) cch.line(degs[i],arr[i],degs[i+1],arr[i+1],color,2.5); };
+      plotLine(cache.bias2,COL.data); plotLine(cache.variance,COL.infer); plotLine(cache.total,COL.ink);
+      cch.vline(d,COL.amber,2,[4,3]);
+      complexityNote.innerHTML=`<span style="color:${COL.data}">■</span> Bias² &nbsp; <span style="color:${COL.infer}">■</span> Variance &nbsp; <span style="color:${COL.ink}">■</span> Total error (includes irreducible noise σ² = ${M.round(cache.noiseSD**2,3)}).<br>
+        At degree ${d}: bias² = ${M.round(cache.bias2[d-1],4)}, variance = ${M.round(cache.variance[d-1],4)}, total ≈ ${M.round(cache.total[d-1],4)}.<br>
+        ${d<=2?'Low flexibility → <b>underfitting</b>: the model is too rigid to capture the curve, so bias dominates.':d>=7?'High flexibility → <b>overfitting</b>: the model chases the noise in this particular training sample, so variance dominates.':'A moderate degree balances the two sources of error — this is usually near where total error is lowest.'} Click "New random training data" to refit everything on a fresh sample — notice the curves jiggle a little too, which is itself variance at work, one level up.`;
+    }
+    drawTarget(); runExperiment();
   }
 });
 
@@ -1906,6 +2196,8 @@ function renderCatalog(){
     const sec=document.createElement('section'); sec.className='section'; sec.id='sec-'+key; sec.style.setProperty('--cat',cat.color);
     const head=document.createElement('div'); head.className='sec-head';
     head.innerHTML=`<span class="num">${cat.n}</span><h2>${cat.name}</h2><span class="desc">${cat.desc}</span>`;
+    const fact=document.createElement('div'); fact.className='sec-fact';
+    fact.innerHTML=`<span class="fact-label">Did you know?</span><span>${cat.fact||''}</span>`;
     const grid=document.createElement('div'); grid.className='grid'; grid.id='grid-'+key;
     items.forEach(ap=>{
       const dc=DIFF_CLASS[ap.diff||'intro']||'diff-intro';
@@ -1919,7 +2211,7 @@ function renderCatalog(){
         <svg class="go" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M13 6l6 6-6 6"/></svg>`;
       card.onclick=()=>goApplet(ap.id); grid.appendChild(card);
     });
-    sec.append(head,grid); root.appendChild(sec);
+    sec.append(head,fact,grid); root.appendChild(sec);
   });
 }
 function filterCatalog(q){
