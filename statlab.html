@@ -455,8 +455,8 @@ class Chart{
   points(xs,ys,color,r=4){ const ctx=this.ctx; for(let i=0;i<xs.length;i++){ ctx.fillStyle=color; ctx.beginPath(); ctx.arc(this.X(xs[i]),this.Y(ys[i]),r,0,7); ctx.fill(); ctx.strokeStyle=COL.paper; ctx.lineWidth=1; ctx.stroke(); } }
   line(x0,y0,x1,y1,color,w=2,dash=[]){ const ctx=this.ctx; ctx.save(); ctx.setLineDash(dash); ctx.strokeStyle=color; ctx.lineWidth=w; ctx.beginPath(); ctx.moveTo(this.X(x0),this.Y(y0)); ctx.lineTo(this.X(x1),this.Y(y1)); ctx.stroke(); ctx.restore(); }
   vline(x,color,w=2,dash=[]){ const ctx=this.ctx; ctx.save(); ctx.setLineDash(dash); ctx.strokeStyle=color; ctx.lineWidth=w; ctx.beginPath(); ctx.moveTo(this.X(x),this.py1); ctx.lineTo(this.X(x),this.py0); ctx.stroke(); ctx.restore(); }
-  curve(fn,color,w=2,n=240){ const ctx=this.ctx; ctx.strokeStyle=color; ctx.lineWidth=w; ctx.beginPath();
-    for(let i=0;i<=n;i++){ const x=this.xmin+(this.xmax-this.xmin)*i/n, y=fn(x); const px=this.X(x),py=this.Y(y); i?ctx.lineTo(px,py):ctx.moveTo(px,py);} ctx.stroke(); }
+  curve(fn,color,w=2,dash=[],n=240){ const ctx=this.ctx; ctx.save(); ctx.setLineDash(dash); ctx.strokeStyle=color; ctx.lineWidth=w; ctx.beginPath();
+    for(let i=0;i<=n;i++){ const x=this.xmin+(this.xmax-this.xmin)*i/n, y=fn(x); const px=this.X(x),py=this.Y(y); i?ctx.lineTo(px,py):ctx.moveTo(px,py);} ctx.stroke(); ctx.restore(); }
   shade(fn,a,b,color,n=120){ const ctx=this.ctx; ctx.fillStyle=color; ctx.beginPath(); ctx.moveTo(this.X(a),this.Y(0));
     for(let i=0;i<=n;i++){ const x=a+(b-a)*i/n; ctx.lineTo(this.X(x),this.Y(fn(x))); } ctx.lineTo(this.X(b),this.Y(0)); ctx.closePath(); ctx.fill(); }
   marker(x,label,color){ const ctx=this.ctx; this.vline(x,color,2); ctx.fillStyle=color; ctx.font='bold 10px "JetBrains Mono",monospace'; ctx.textAlign='center'; ctx.textBaseline='bottom'; ctx.fillText(label,this.X(x),this.py1+11); }
@@ -881,7 +881,7 @@ add({ id:'t-calc', cat:'prob', tag:'calculator', title:'t Probability Calculator
       if(mode==='lt'){ sa=lo;sb=t;p=M.tCdf(t,df); ch.shade(pdf,sa,sb,hexA(COL.prob,.3)); }
       else if(mode==='gt'){ sa=t;sb=hi;p=1-M.tCdf(t,df); ch.shade(pdf,sa,sb,hexA(COL.prob,.3)); }
       else { const at=Math.abs(t); p=2*(1-M.tCdf(at,df)); ch.shade(pdf,lo,-at,hexA(COL.prob,.3)); ch.shade(pdf,at,hi,hexA(COL.prob,.3)); }
-      if(normSeg.get()=='1') ch.curve(x=>M.normPdf(x,0,1),hexA(COL.ink,.4),1.6,200);
+      if(normSeg.get()=='1') ch.curve(x=>M.normPdf(x,0,1),hexA(COL.ink,.4),1.6);
       ch.curve(pdf,COL.prob,2.5); ch.vline(mode==='two'?Math.abs(t):t,COL.ink,1.5,[4,3]); if(mode==='two')ch.vline(-Math.abs(t),COL.ink,1.5,[4,3]);
       stats.set([{k:'probability',v:M.round(p,4),accent:1},{k:'percent',v:M.round(p*100,3)+'%',accent:1},{k:'df',v:df},{k:'t',v:M.round(t,3)}]);
     }
