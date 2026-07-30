@@ -8,13 +8,18 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='3' y='18' width='5' height='11' rx='1.5' fill='%2365A30D'/%3E%3Crect x='10' y='11' width='5' height='18' rx='1.5' fill='%230D9488'/%3E%3Crect x='17' y='6' width='5' height='23' rx='1.5' fill='%234F46E5'/%3E%3Crect x='24' y='13' width='5' height='16' rx='1.5' fill='%23EA580C'/%3E%3C/svg%3E">
+<meta property="og:title" content="StatLab — Interactive Statistics Simulations">
+<meta property="og:description" content="A collection of interactive statistics simulations and calculators for learning data analysis, sampling distributions, probability, and inference.">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary">
 <style>
 :root{
   --paper:#FCFBF8;
   --paper-2:#F5F3EC;
   --ink:#211E2E;
   --ink-soft:#54506A;
-  --ink-faint:#8B879C;
+  --ink-faint:#726D87;
   --line:#E3DFD3;
   --grid:#ECE8DC;
   --white:#FFFFFF;
@@ -526,8 +531,8 @@ const UI = {
     w.innerHTML=`<label>${label}</label><textarea>${value}</textarea>${hint?`<span class="hint">${hint}</span>`:''}`;
     const t=w.querySelector('textarea'); t.addEventListener('input',()=>onchange(t.value)); w.get=()=>t.value; w.set=(v)=>t.value=v; return w; },
   seg({label,options,value,onchange}){ const w=document.createElement('div'); w.className='ctrl';
-    w.innerHTML=`${label?`<label>${label}</label>`:''}<div class="seg"></div>`; const seg=w.querySelector('.seg');
-    options.forEach(o=>{ const b=document.createElement('button'); b.textContent=o.label; b.className=o.value===value?'on':''; b.onclick=()=>{ seg.querySelectorAll('button').forEach(x=>x.classList.remove('on')); b.classList.add('on'); w._v=o.value; onchange(o.value); }; seg.appendChild(b); }); w._v=value; w.get=()=>w._v; return w; },
+    w.innerHTML=`${label?`<label>${label}</label>`:''}<div class="seg" role="radiogroup" aria-label="${label||''}"></div>`; const seg=w.querySelector('.seg');
+    options.forEach(o=>{ const b=document.createElement('button'); b.type='button'; b.role='radio'; b.setAttribute('role','radio'); b.setAttribute('aria-checked',o.value===value?'true':'false'); b.textContent=o.label; b.className=o.value===value?'on':''; b.onclick=()=>{ seg.querySelectorAll('button').forEach(x=>{x.classList.remove('on');x.setAttribute('aria-checked','false');}); b.classList.add('on'); b.setAttribute('aria-checked','true'); w._v=o.value; onchange(o.value); }; seg.appendChild(b); }); w._v=value; w.get=()=>w._v; return w; },
   select({label,options,value,onchange}){ const w=document.createElement('div'); w.className='ctrl';
     w.innerHTML=`<label>${label}</label><select>${options.map(o=>`<option value="${o.value}" ${o.value===value?'selected':''}>${o.label}</option>`).join('')}</select>`;
     const s=w.querySelector('select'); s.addEventListener('change',()=>onchange(s.value)); w.get=()=>s.value; return w; },
@@ -541,8 +546,8 @@ const UI = {
     return w; },
   statsBox(){ const w=document.createElement('div'); w.className='stats'; w.set=(arr)=>{ w.innerHTML=arr.map(s=>`<div class="stat"><div class="k">${s.k}</div><div class="v ${s.accent?'accent':''}">${s.v}</div></div>`).join(''); }; return w; },
   plotCard(title,h=null){ const w=document.createElement('div'); w.className='plot-card';
-    w.innerHTML=`<div class="plot-title">${title}</div><div class="plotwrap"><canvas></canvas></div>`;
-    const cv=w.querySelector('canvas'); w.canvas=cv; w.chart=()=>new Chart(cv,h?{cssH:h}:{}); w.setTitle=(t)=>w.querySelector('.plot-title').textContent=t; return w; },
+    w.innerHTML=`<div class="plot-title">${title}</div><div class="plotwrap"><canvas role="img" aria-label="${title}"></canvas></div>`;
+    const cv=w.querySelector('canvas'); w.canvas=cv; w.chart=()=>new Chart(cv,h?{cssH:h}:{}); w.setTitle=(t)=>{ w.querySelector('.plot-title').textContent=t; cv.setAttribute('aria-label',t); }; return w; },
   note(html){ const w=document.createElement('div'); w.className='note'; w.innerHTML=html; return w; },
   divider(label){ const w=document.createElement('div'); w.style.cssText='font-family:var(--mono);font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);margin-top:8px;border-top:1px dashed var(--line);padding-top:12px;'; w.textContent=label; return w; }
 };
@@ -2234,11 +2239,11 @@ function filterCatalog(q){
 /* ------------------------- (5) ROUTER ------------------------------- */
 const homeEl=document.getElementById('home'), viewEl=document.getElementById('appletView');
 function goHome(){ location.hash=''; showHome(); }
-function showHome(){ viewEl.style.display='none'; homeEl.style.display='block'; }
+function showHome(){ viewEl.style.display='none'; homeEl.style.display='block'; document.title='StatLab — Interactive Statistics Simulations'; const metaDesc=document.querySelector('meta[name="description"]'); if(metaDesc)metaDesc.setAttribute('content','A collection of interactive statistics simulations and calculators for learning data analysis, sampling distributions, probability, and inference.'); }
 function goApplet(id){ location.hash='/'+id; }
 
 // Dark mode
-let _dark = false; // always start in light mode; user can toggle
+let _dark = false; // set by the restored-preference call at the end of init
 
 // Dark mode via CSS class
 const darkStyle=document.createElement('style');
@@ -2262,7 +2267,7 @@ function applyDark(d){
   }
   document.body.classList.toggle('dark-override',d);
 }
-function toggleDark(){ _dark=!_dark; localStorage.setItem('sl-dark',_dark?'1':'0'); applyDark(_dark); }
+function toggleDark(){ applyDark(!_dark); localStorage.setItem('sl-dark',_dark?'1':'0'); }
 
 // Share current URL
 function shareApplet(){
@@ -2283,6 +2288,8 @@ document.addEventListener('keydown',e=>{
 function openApplet(id){
   const ap=APPLETS.find(a=>a.id===id); if(!ap){ showHome(); return; }
   const cat=CATS[ap.cat];
+  document.title=ap.title+' — StatLab';
+  const metaDesc=document.querySelector('meta[name="description"]'); if(metaDesc)metaDesc.setAttribute('content',ap.blurb);
   homeEl.style.display='none'; viewEl.style.display='block'; viewEl.style.setProperty('--accent',cat.color);
   viewEl.innerHTML='';
   const w=document.createElement('div'); w.className='wrap';
@@ -2337,7 +2344,12 @@ function heroAnim(){
 renderCatalog();
 heroAnim();
 route();
-window.addEventListener('resize',()=>{ if(viewEl.style.display==='block'){ const id=location.hash.slice(2); openApplet(decodeURIComponent(id)); } });
+let _wasMobile=window.innerWidth<=880;
+window.addEventListener('resize',()=>{
+  const isMobile=window.innerWidth<=880;
+  if(isMobile!==_wasMobile && viewEl.style.display==='block'){ _wasMobile=isMobile; const id=location.hash.slice(2); openApplet(decodeURIComponent(id)); }
+  else _wasMobile=isMobile;
+});
 
 // Add keyboard hint to search area
 const searchWrap=document.querySelector('.search-wrap');
@@ -2349,7 +2361,7 @@ if(searchWrap){
 }
 
 // Restore dark mode preference
-applyDark(false);
+applyDark(localStorage.getItem('sl-dark')==='1');
 </script>
 </body>
 </html>
