@@ -280,6 +280,7 @@ canvas{display:block;}
       StatLab <span class="beta">v1</span>
     </button>
     <nav id="topnav"></nav>
+    <span class="share-btn visit-chip" id="visitChip" title="Page visits (stored locally in your browser)" style="pointer-events:none;gap:5px;">👁 <span id="visitCountNum">—</span></span>
     <button class="share-btn" id="darkToggle" onclick="toggleDark()" title="Toggle dark mode" aria-label="Toggle dark mode">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" id="darkIcon"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
     </button>
@@ -2362,6 +2363,17 @@ if(searchWrap){
 
 // Restore dark mode preference
 applyDark(localStorage.getItem('sl-dark')==='1');
+
+// Visit counter
+(function(){
+  try{
+    let n = parseInt(localStorage.getItem('sl-visit-count')||'0',10)||0;
+    n++;
+    localStorage.setItem('sl-visit-count', String(n));
+    const el = document.getElementById('visitCountNum');
+    if(el) el.textContent = n.toLocaleString();
+  }catch(e){}
+})();
 </script>
 </body>
 </html>
