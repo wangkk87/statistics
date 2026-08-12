@@ -177,8 +177,19 @@ canvas{display:block;}
 .viz{display:flex;flex-direction:column;gap:14px;}
 .plot-card{background:var(--paper);border:1px solid var(--line);border-radius:var(--r-sm);padding:12px;}
 .plot-card .plot-title{font-family:var(--mono);font-size:.72rem;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:8px;}
+.plot-title-row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+.plot-title-row .plot-title{margin-bottom:8px;flex:1;min-width:120px;}
+.plot-toolbar{display:flex;align-items:center;gap:3px;margin-bottom:8px;}
+.plot-tool-btn{display:inline-flex;align-items:center;justify-content:center;width:23px;height:23px;padding:0;border:1px solid var(--line);background:var(--paper);border-radius:6px;color:var(--ink-soft);font-family:var(--mono);font-size:.85rem;line-height:1;transition:.15s;}
+.plot-tool-btn:hover:not(:disabled){border-color:var(--ink);color:var(--ink);}
+.plot-tool-btn:disabled{opacity:.35;cursor:not-allowed;}
+.plot-tool-btn.dl{font-size:.72rem;}
+.plot-zoom-level{font-family:var(--mono);font-size:.64rem;color:var(--ink-faint);min-width:32px;text-align:center;user-select:none;}
+.plot-toolbar .sep{width:1px;height:14px;background:var(--line);margin:0 2px;}
+.plotwrap-outer{width:100%;}
+.plotwrap-outer.is-zoomed{overflow:auto;border:1px dashed var(--line);border-radius:6px;-webkit-overflow-scrolling:touch;}
 .plotwrap{width:100%;}
-.plotwrap canvas{width:100%;height:auto;}
+.plotwrap canvas{width:100%;height:auto;display:block;}
 
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px;}
 .stat{background:var(--paper);border:1px solid var(--line);border-radius:var(--r-sm);padding:11px 13px;}
@@ -547,8 +558,47 @@ const UI = {
     return w; },
   statsBox(){ const w=document.createElement('div'); w.className='stats'; w.set=(arr)=>{ w.innerHTML=arr.map(s=>`<div class="stat"><div class="k">${s.k}</div><div class="v ${s.accent?'accent':''}">${s.v}</div></div>`).join(''); }; return w; },
   plotCard(title,h=null){ const w=document.createElement('div'); w.className='plot-card';
-    w.innerHTML=`<div class="plot-title">${title}</div><div class="plotwrap"><canvas role="img" aria-label="${title}"></canvas></div>`;
-    const cv=w.querySelector('canvas'); w.canvas=cv; w.chart=()=>new Chart(cv,h?{cssH:h}:{}); w.setTitle=(t)=>{ w.querySelector('.plot-title').textContent=t; cv.setAttribute('aria-label',t); }; return w; },
+    w.innerHTML=`<div class="plot-title-row">
+        <div class="plot-title">${title}</div>
+        <div class="plot-toolbar" role="group" aria-label="Chart controls">
+          <button type="button" class="plot-tool-btn" data-act="zoomout" title="Zoom out" aria-label="Zoom out">−</button>
+          <span class="plot-zoom-level">100%</span>
+          <button type="button" class="plot-tool-btn" data-act="zoomin" title="Zoom in" aria-label="Zoom in">+</button>
+          <span class="sep"></span>
+          <button type="button" class="plot-tool-btn" data-act="reset" title="Reset zoom" aria-label="Reset zoom">↺</button>
+          <button type="button" class="plot-tool-btn dl" data-act="download" title="Download PNG" aria-label="Download chart as PNG">⭳</button>
+        </div>
+      </div>
+      <div class="plotwrap-outer"><div class="plotwrap"><canvas role="img" aria-label="${title}"></canvas></div></div>`;
+    const cv=w.querySelector('canvas'); w.canvas=cv; w.chart=()=>new Chart(cv,h?{cssH:h}:{});
+    w.setTitle=(t)=>{ w.querySelector('.plot-title').textContent=t; cv.setAttribute('aria-label',t); };
+
+    // ----- zoom in / out / reset -----
+    const outer=w.querySelector('.plotwrap-outer'), pw=w.querySelector('.plotwrap');
+    const zoomLbl=w.querySelector('.plot-zoom-level');
+    const zoomInBtn=w.querySelector('[data-act="zoomin"]'), zoomOutBtn=w.querySelector('[data-act="zoomout"]');
+    const MIN=0.5, MAX=3, STEP=0.25;
+    let zoom=1, naturalH=null;
+    const applyZoom=()=>{
+      pw.style.zoom=zoom;
+      zoomLbl.textContent=Math.round(zoom*100)+'%';
+      if(zoom>1){ if(naturalH==null){ naturalH=outer.getBoundingClientRect().height; } outer.style.maxHeight=naturalH+'px'; outer.classList.add('is-zoomed'); }
+      else{ outer.style.maxHeight=''; outer.classList.remove('is-zoomed'); }
+      zoomOutBtn.disabled=zoom<=MIN+1e-6; zoomInBtn.disabled=zoom>=MAX-1e-6;
+    };
+    zoomInBtn.onclick=()=>{ if(zoom===1) naturalH=outer.getBoundingClientRect().height; zoom=Math.min(MAX,+(zoom+STEP).toFixed(2)); applyZoom(); };
+    zoomOutBtn.onclick=()=>{ zoom=Math.max(MIN,+(zoom-STEP).toFixed(2)); applyZoom(); };
+    w.querySelector('[data-act="reset"]').onclick=()=>{ zoom=1; naturalH=null; outer.scrollLeft=0; outer.scrollTop=0; applyZoom(); };
+
+    // ----- download as PNG -----
+    w.querySelector('[data-act="download"]').onclick=()=>{
+      try{
+        const name=(w.querySelector('.plot-title').textContent||'chart').trim().toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-+|-+$)/g,'')||'chart';
+        const link=document.createElement('a'); link.download=`statlab-${name}.png`; link.href=cv.toDataURL('image/png');
+        document.body.appendChild(link); link.click(); document.body.removeChild(link);
+      }catch(e){ console.error('PNG download failed',e); }
+    };
+    return w; },
   note(html){ const w=document.createElement('div'); w.className='note'; w.innerHTML=html; return w; },
   divider(label){ const w=document.createElement('div'); w.style.cssText='font-family:var(--mono);font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);margin-top:8px;border-top:1px dashed var(--line);padding-top:12px;'; w.textContent=label; return w; }
 };
