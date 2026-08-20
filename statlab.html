@@ -738,7 +738,7 @@ const PAIR_B2 = [-1.2083,-1.1504,-1.0903,-1.0277,-0.9626,-0.8947,-0.8237,-0.7493
 const PAIR_C1 = [-1.6752,-1.5597,-1.4442,-1.3286,-1.2131,-1.0976,-0.9820,-0.8665,-0.7510,-0.6354,-0.5199,-0.4044,-0.2888,-0.1733,-0.0578,0.0578,0.1733,0.2888,0.4044,0.5199,0.6354,0.7510,0.8665,0.9820,1.0976,1.2131,1.3286,1.4442,1.5597,1.6752];
 const PAIR_C2 = [-0.0626,-0.1096,-0.1566,-0.2036,-0.2505,-0.2975,-0.3445,-0.3915,-0.4384,-0.4854,-0.5324,-0.5794,-0.6263,-2.0043,-3.0064,0.0626,0.1096,0.1566,0.2036,0.2505,0.2975,0.3445,0.3915,0.4384,0.4854,0.5324,0.5794,0.6263,2.0043,3.0064];
 const PAIR_D1 = [-1.6903,-1.6058,-1.5213,-1.4368,-1.3522,-1.2677,-1.1832,-1.0987,-1.0142,-0.9297,-0.8452,-0.7606,-0.6761,-0.5916,-0.5071,-0.4226,-0.3381,-0.2535,-0.1690,-0.0845,-0.0000,0.0845,0.1690,0.2535,0.3381,0.4226,0.5071,0.5916,0.6761,0.7606,0.8452,0.9297,1.0142,1.0987,1.1832,1.2677,1.3522,1.4368,1.5213,1.6058,1.6903];
-const PAIR_D2 = [-0.0432,-0.1299,-0.2165,-0.3032,-0.3898,-0.4764,-0.5631,-0.6497,-0.7363,-0.8230,-0.9096,-0.9962,-1.0829,-1.1695,-1.2561,-1.3428,-1.4294,-1.5160,-1.6027,-1.6893,0.0432,0.1299,0.2165,0.3032,0.3898,0.4764,0.5631,0.6497,0.7363,0.8230,0.9096,0.9962,1.0829,1.1695,1.2561,1.3428,1.4294,1.5160,1.6027,1.6893];
+const PAIR_D2 = [0.1026,-0.1571,-0.3014,-0.4090,-0.4984,-0.5771,-0.6490,-0.7164,-0.7810,-0.8441,-0.9067,-0.9698,-1.0344,-1.1018,-1.1737,-1.2523,-1.3417,-1.4494,-1.5937,-1.8534,-0.1026,0.1571,0.3014,0.4090,0.4984,0.5771,0.6490,0.7164,0.7810,0.8441,0.9067,0.9698,1.0344,1.1018,1.1737,1.2523,1.3417,1.4494,1.5937,1.8534];
 
 /* ===== Data Analysis : Same Stats, Wildly Different Shapes (Anscombe & the Datasaurus) ===== */
 add({ id:'same-stats-diff-shapes', cat:'data', tag:'explore', title:'Same Stats, Wildly Different Shapes', diff:'intro',
@@ -802,7 +802,7 @@ add({ id:'same-stats-diff-shapes', cat:'data', tag:'explore', title:'Same Stats,
       const xpad=(xhi-xlo)*0.08||1, ypad=(yhi-ylo)*0.08||1;
       const ch=plot.chart(); ch.setX(xlo-xpad,xhi+xpad).setY(ylo-ypad,yhi+ypad); ch.clear(); ch.grid();
       ch.axisX(niceTicks(xlo-xpad,xhi+xpad,6)); ch.axisY(niceTicks(ylo-ypad,yhi+ypad,5));
-      if(lineSeg.get()==='1') ch.line(xlo-xpad,a+b*(xlo-xpad),xhi+xpad,a+b*(xhi+xpad),COL.coral,2.5);
+      if(lineSeg.get()===1) ch.line(xlo-xpad,a+b*(xlo-xpad),xhi+xpad,a+b*(xhi+xpad),COL.coral,2.5);
       ch.points(xs,ys,hexA(family==='anscombe'?COL.data:COL.multi,.75),family==='anscombe'?5:3);
       const member = family==='anscombe' ? ansMember : dsMember;
       plot.setTitle((family==='anscombe'?"Anscombe's Quartet — member ":'Datasaurus Dozen — ')+member);
@@ -914,11 +914,11 @@ add({ id:'four-moments', cat:'data', tag:'interactive', title:'The Four Moments 
         const nb=Math.min(50,Math.max(12,Math.round(Math.sqrt(data.length))));
         const hb=histogram(data,nb,lo-pad,hi+pad); const bw=hb[0].hi-hb[0].lo; const total=data.length;
         const props=hb.map(b=>b.count/total/bw);
-        const maxD=Math.max(...props, overlaySeg.get()==='1'? M.normPdf(mo.mean,mo.mean,mo.sd):0);
+        const maxD=Math.max(...props, overlaySeg.get()===1? M.normPdf(mo.mean,mo.mean,mo.sd):0);
         const ch=hist.chart();
         ch.setX(lo-pad,hi+pad).setY(0,maxD*1.18); ch.clear();
         ch.bars(hb.map((b,i)=>({lo:b.lo,hi:b.hi,count:props[i]})),hexA(COL.data,.78)); ch.grid(); ch.axisX(niceTicks(lo-pad,hi+pad,6));
-        if(overlaySeg.get()==='1') ch.curve(x=>M.normPdf(x,mo.mean,mo.sd),COL.coral,2.5,[5,3]);
+        if(overlaySeg.get()===1) ch.curve(x=>M.normPdf(x,mo.mean,mo.sd),COL.coral,2.5,[5,3]);
         ch.marker(mo.mean,'mean',COL.coral);
         interp.innerHTML=NOTES[famSel.get()];
       }
@@ -937,7 +937,7 @@ add({ id:'four-moments', cat:'data', tag:'interactive', title:'The Four Moments 
         C:{ short:'1st–3rd same, 4th different', name1:'Dataset 1 (uniform-like)', name2:'Dataset 2 (heavy-tailed)', d1:PAIR_C1, d2:PAIR_C2,
           note:'<b>Same mean, variance, and skewness (both symmetric, skew ≈ 0), different kurtosis.</b> Dataset 1 has no tails at all — a flat, uniform-looking spread. Dataset 2 keeps most of its values tightly bunched near the center but sends a few points far out into the tails. Matching three moments still says nothing about how the "extra" variability is packaged — concentrated near the middle with rare extreme outliers, or spread out evenly.' },
         D:{ short:'All 4 moments match!', name1:'Dataset 1 (uniform)', name2:'Dataset 2 (bimodal)', d1:PAIR_D1, d2:PAIR_D2,
-          note:'<b>Same mean, variance, skewness, AND kurtosis — exactly — yet the shapes are completely different.</b> Dataset 1 is a flat, evenly-spread rectangle. Dataset 2 is two separated clumps with a gap in the middle. Their first four moments agree to more decimal places than the histogram below even bothers to show. This is the univariate cousin of Anscombe\'s Quartet and the Datasaurus Dozen (see the "Same Stats, Wildly Different Shapes" applet above): moments summarize a distribution, they do not determine it. No finite list of moments ever guarantees two datasets look alike.' },
+          note:'<b>Same mean, variance, skewness, AND kurtosis — exactly — yet the shapes are completely different.</b> Dataset 1 is a flat, evenly-spread rectangle. Dataset 2 has two humps with a visible dip between them near the center. Their first four moments agree to more decimal places than the histogram below even bothers to show. This is the univariate cousin of Anscombe\'s Quartet and the Datasaurus Dozen (see the "Same Stats, Wildly Different Shapes" applet above): moments summarize a distribution, they do not determine it. No finite list of moments ever guarantees two datasets look alike.' },
       };
       const pairSeg=UI.seg({label:'Which comparison?',options:[
         {label:'Same mean, different spread',value:'A'},
@@ -970,17 +970,21 @@ add({ id:'four-moments', cat:'data', tag:'interactive', title:'The Four Moments 
           ${fmtRow('3rd: skewness',m1.skew,m2.skew,0.01)}
           ${fmtRow('4th: kurtosis',m1.kurt,m2.kurt,0.01)}
         </table>`;
-        drawHist(hist1,p.d1,p.name1,COL.data);
-        drawHist(hist2,p.d2,p.name2,COL.coral);
+        // Share one x-range (and bin count) across both histograms in the pair,
+        // so a wider/narrower spread is actually visible instead of each panel
+        // auto-scaling to fill its own canvas.
+        const lo=Math.min(M.min(p.d1),M.min(p.d2)), hi=Math.max(M.max(p.d1),M.max(p.d2));
+        const pad=(hi-lo)*0.08||1;
+        const nb=Math.max(10,Math.min(24,Math.round(Math.sqrt(Math.max(p.d1.length,p.d2.length))*1.5)));
+        drawHist(hist1,p.d1,p.name1,COL.data,lo-pad,hi+pad,nb);
+        drawHist(hist2,p.d2,p.name2,COL.coral,lo-pad,hi+pad,nb);
         interpC.innerHTML=p.note;
       }
-      function drawHist(card,data,title,color){
-        const lo=M.min(data),hi=M.max(data),pad=(hi-lo)*0.1||1;
-        const nb=Math.max(9,Math.min(22,Math.round(Math.sqrt(data.length)*1.4)));
-        const hb=histogram(data,nb,lo-pad,hi+pad);
+      function drawHist(card,data,title,color,lo,hi,nb){
+        const hb=histogram(data,nb,lo,hi);
         const maxc=Math.max(...hb.map(b=>b.count),1);
-        const ch=card.chart(); ch.setX(lo-pad,hi+pad).setY(0,maxc*1.2); ch.clear();
-        ch.bars(hb,hexA(color,.78)); ch.grid(); ch.axisX(niceTicks(lo-pad,hi+pad,6));
+        const ch=card.chart(); ch.setX(lo,hi).setY(0,maxc*1.2); ch.clear();
+        ch.bars(hb,hexA(color,.78)); ch.grid(); ch.axisX(niceTicks(lo,hi,6));
         card.setTitle(title);
       }
       drawCompare();
