@@ -1854,6 +1854,205 @@ add({ id:'poker-hands', cat:'classic', tag:'game', title:'Poker Hands — Deal &
   }
 });
 
+/* ===== Classics : Lottery Expected Value ===== */
+add({ id:'lottery-ev', cat:'classic', tag:'game', title:'Lottery — Pick Your Numbers (Powerball-Style)', diff:'inter',
+  questions:['Before looking at the table, guess: is the expected value of a $2 ticket positive or negative?','How big would the jackpot need to be for buying a ticket to have positive expected value?','Why can something have a negative expected value and still be worth playing to some people?'],
+  blurb:'Pick 5 white numbers (1–69) and 1 red Powerball number (1–26), just like a real Powerball ticket. Draw the numbers, see what you win, and see the full combinatorics behind every prize tier — including whether the $2 ticket is a good bet.',
+  build(host){
+    function C(n,k){ if(k<0||k>n) return 0; let r=1; for(let i=0;i<k;i++) r=r*(n-i)/(i+1); return Math.round(r); }
+    const TOTAL=C(69,5)*26; // 292,201,338
+    const TICKET_PRICE=2;
+    let jackpot=150000000;
+    // prize tiers grouped by payout amount (matches how a player actually experiences it)
+    const TIERS=[
+      { key:'jackpot', label:'Match 5 + Powerball — JACKPOT', prizeIsJackpot:true, combos:C(5,5)*C(64,0)*1,
+        formula:'C(5,5)×C(64,0) × 1 (PB match) = 1×1×1' },
+      { key:'m5', label:'Match 5 (no Powerball)', prize:1000000, combos:C(5,5)*C(64,0)*25,
+        formula:'C(5,5)×C(64,0) × 25 (PB miss) = 1×1×25' },
+      { key:'m4pb', label:'Match 4 + Powerball', prize:50000, combos:C(5,4)*C(64,1)*1,
+        formula:'C(5,4)×C(64,1) × 1 (PB match) = 5×64×1' },
+      { key:'m100', label:'Match 4, or Match 3 + Powerball', prize:100, combos:C(5,4)*C(64,1)*25 + C(5,3)*C(64,2)*1,
+        formula:'[C(5,4)×C(64,1)×25] + [C(5,3)×C(64,2)×1] = 8,000 + 20,160' },
+      { key:'m7', label:'Match 3, or Match 2 + Powerball', prize:7, combos:C(5,3)*C(64,2)*25 + C(5,2)*C(64,3)*1,
+        formula:'[C(5,3)×C(64,2)×25] + [C(5,2)×C(64,3)×1] = 504,000 + 416,640' },
+      { key:'m4', label:'Match 1 + Powerball, or Match 0 + Powerball', prize:4, combos:C(5,1)*C(64,4)*1 + C(5,0)*C(64,5)*1,
+        formula:'[C(5,1)×C(64,4)×1] + [C(5,0)×C(64,5)×1] = 3,176,880 + 7,624,512' },
+    ];
+    const winCombos=TIERS.reduce((s,t)=>s+t.combos,0);
+    const loseCombos=TOTAL-winCombos;
+    TIERS.push({ key:'lose', label:'No prize (ticket doesn\'t win anything)', prize:0, combos:loseCombos,
+      formula:'C(69,5)×26 − (all winning combos above) = '+TOTAL.toLocaleString()+' − '+winCombos.toLocaleString() });
+
+    let counts={}; TIERS.forEach(t=>counts[t.key]=0); let ticketsBought=0,totalSpent=0,totalWon=0; let history=[];
+    let userWhite=[], userPB=null;
+
+    /* ---- your ticket picker ---- */
+    const pickWrap=document.createElement('div'); pickWrap.className='plot-card';
+    pickWrap.innerHTML='<div class="plot-title">Pick your numbers</div>'+
+      '<div style="font-family:var(--mono);font-size:.72rem;color:var(--ink-faint);margin-bottom:6px;">5 white numbers (1–69) — <span id="wCount">0</span>/5 selected</div>'+
+      '<div id="whiteGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(30px,1fr));gap:4px;max-height:150px;overflow-y:auto;padding:4px;border:1px solid var(--line);border-radius:8px;"></div>'+
+      '<div style="font-family:var(--mono);font-size:.72rem;color:var(--ink-faint);margin:10px 0 6px;">1 red Powerball (1–26)</div>'+
+      '<div id="pbGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(30px,1fr));gap:4px;padding:4px;border:1px solid var(--line);border-radius:8px;"></div>'+
+      '<div id="ticketRow" style="display:flex;gap:6px;justify-content:center;padding:14px 0 4px;flex-wrap:wrap;"></div>'+
+      '<div id="drawMsg" style="text-align:center;font-family:var(--mono);font-size:.9rem;font-weight:700;min-height:1.6em;"></div>'+
+      '<div id="drawHist" style="display:flex;gap:4px;justify-content:center;flex-wrap:wrap;margin-top:6px;"></div>';
+    const whiteGridEl=pickWrap.querySelector('#whiteGrid'), pbGridEl=pickWrap.querySelector('#pbGrid'),
+      wCountEl=pickWrap.querySelector('#wCount'), ticketRowEl=pickWrap.querySelector('#ticketRow'),
+      drawMsgEl=pickWrap.querySelector('#drawMsg'), drawHistEl=pickWrap.querySelector('#drawHist');
+
+    for(let n=1;n<=69;n++){ const b=document.createElement('button'); b.textContent=n; b.dataset.n=n;
+      b.style.cssText='border:1px solid var(--line);background:var(--white);border-radius:6px;font-family:var(--mono);font-size:.68rem;padding:4px 0;cursor:pointer;';
+      b.onclick=()=>toggleWhite(n,b); whiteGridEl.appendChild(b); }
+    for(let n=1;n<=26;n++){ const b=document.createElement('button'); b.textContent=n; b.dataset.n=n;
+      b.style.cssText='border:1px solid var(--line);background:var(--white);border-radius:6px;font-family:var(--mono);font-size:.68rem;padding:4px 0;cursor:pointer;';
+      b.onclick=()=>selectPB(n,b); pbGridEl.appendChild(b); }
+
+    function toggleWhite(n,btn){
+      const i=userWhite.indexOf(n);
+      if(i>-1){ userWhite.splice(i,1); btn.style.background='var(--white)'; btn.style.color='var(--ink)'; btn.style.borderColor='var(--line)'; }
+      else{ if(userWhite.length>=5) return; userWhite.push(n); btn.style.background=COL.classic; btn.style.color='#fff'; btn.style.borderColor=COL.classic; }
+      wCountEl.textContent=userWhite.length; drawTicket();
+    }
+    function selectPB(n,btn){
+      userPB=n; pbGridEl.querySelectorAll('button').forEach(b=>{ b.style.background='var(--white)'; b.style.color='var(--ink)'; b.style.borderColor='var(--line)'; });
+      btn.style.background=COL.coral; btn.style.color='#fff'; btn.style.borderColor=COL.coral; drawTicket();
+    }
+    function quickPick(){
+      userWhite=[]; const pool=Array.from({length:69},(_,i)=>i+1); const sh=M.shuffle(pool).slice(0,5).sort((a,b)=>a-b); userWhite=sh; userPB=1+Math.floor(Math.random()*26);
+      whiteGridEl.querySelectorAll('button').forEach(b=>{ const n=+b.dataset.n; const on=userWhite.includes(n);
+        b.style.background=on?COL.classic:'var(--white)'; b.style.color=on?'#fff':'var(--ink)'; b.style.borderColor=on?COL.classic:'var(--line)'; });
+      pbGridEl.querySelectorAll('button').forEach(b=>{ const on=+b.dataset.n===userPB;
+        b.style.background=on?COL.coral:'var(--white)'; b.style.color=on?'#fff':'var(--ink)'; b.style.borderColor=on?COL.coral:'var(--line)'; });
+      wCountEl.textContent=userWhite.length; drawTicket();
+    }
+    function ballHTML(n,color){ return '<span style="display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:99px;background:'+color+';color:#fff;font-family:var(--mono);font-weight:700;font-size:.8rem;">'+(n==null?'?':n)+'</span>'; }
+    function drawTicket(){ ticketRowEl.innerHTML=[0,1,2,3,4].map(i=>ballHTML([...userWhite].sort((a,b)=>a-b)[i],COL.faint)).join('')+ballHTML(userPB,COL.coral); }
+    drawTicket();
+
+    /* ---- draw a real (random) ticket, animate, evaluate ---- */
+    const resultGrid=document.createElement('div'); resultGrid.style.cssText='display:flex;gap:6px;justify-content:center;padding:10px 0;';
+    for(let i=0;i<6;i++){ const b=document.createElement('div'); b.className='drawball';
+      b.style.cssText='width:38px;height:38px;border-radius:99px;background:var(--paper-2);border:2px dashed var(--line);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-weight:700;font-size:.82rem;color:var(--ink-faint);';
+      b.textContent='—'; resultGrid.appendChild(b); }
+    pickWrap.insertBefore(resultGrid, ticketRowEl.nextSibling);
+
+    function evaluate(){
+      const drawnWhite=M.shuffle(Array.from({length:69},(_,i)=>i+1)).slice(0,5);
+      const drawnPB=1+Math.floor(Math.random()*26);
+      const matchCount=userWhite.filter(n=>drawnWhite.includes(n)).length;
+      const pbMatch=userPB===drawnPB;
+      let tierKey='lose', prize=0;
+      if(matchCount===5&&pbMatch){ tierKey='jackpot'; prize=jackpot; }
+      else if(matchCount===5){ tierKey='m5'; prize=1000000; }
+      else if(matchCount===4&&pbMatch){ tierKey='m4pb'; prize=50000; }
+      else if(matchCount===4||(matchCount===3&&pbMatch)){ tierKey='m100'; prize=100; }
+      else if(matchCount===3||(matchCount===2&&pbMatch)){ tierKey='m7'; prize=7; }
+      else if((matchCount===1&&pbMatch)||(matchCount===0&&pbMatch)){ tierKey='m4'; prize=4; }
+      return {drawnWhite:[...drawnWhite].sort((a,b)=>a-b), drawnPB, matchCount, pbMatch, tierKey, prize};
+    }
+    function animateAndDraw(){
+      if(userWhite.length!==5||userPB==null){ drawMsgEl.textContent='Pick 5 white numbers and 1 Powerball first.'; return; }
+      const res=evaluate();
+      const balls=resultGrid.querySelectorAll('.drawball');
+      const seq=[...res.drawnWhite, res.drawnPB];
+      drawMsgEl.textContent='Drawing…';
+      seq.forEach((finalN,i)=>{
+        const el=balls[i]; const isPB=i===5; const maxN=isPB?26:69;
+        const start=Date.now(); const dur=500+i*220;
+        el.style.borderStyle='solid'; el.style.borderColor=isPB?COL.coral:COL.classic; el.style.color=isPB?COL.coral:COL.ink;
+        const t=setInterval(()=>{
+          if(Date.now()-start>=dur){ clearInterval(t); el.textContent=finalN; el.style.background=isPB?COL.coral:COL.faint; el.style.color='#fff';
+            if(i===5) setTimeout(()=>finish(res),150);
+            return; }
+          el.textContent=1+Math.floor(Math.random()*maxN);
+        },45);
+      });
+    }
+    function finish(res){
+      counts[res.tierKey]++; ticketsBought++; totalSpent+=TICKET_PRICE;
+      const wonAmt = res.tierKey==='jackpot' ? jackpot : res.prize;
+      totalWon+=wonAmt;
+      const netThis = wonAmt - TICKET_PRICE;
+      const tier=TIERS.find(t=>t.key===res.tierKey);
+      drawMsgEl.innerHTML = res.tierKey==='lose'
+        ? '<span style="color:'+COL.faint+';">No match — you lose your $2</span>'
+        : '<span style="color:'+(res.tierKey==='jackpot'?COL.coral:COL.classic)+';">'+tier.label+' → win $'+wonAmt.toLocaleString()+'</span> <span style="font-weight:400;color:var(--ink-faint);">(net '+(netThis>=0?'+':'')+'$'+netThis.toLocaleString()+')</span>';
+      history.unshift(res.tierKey); if(history.length>15) history.pop();
+      drawDrawHist(); drawEVTable(); drawSummary();
+    }
+    function drawDrawHist(){
+      drawHistEl.innerHTML=history.map(k=>{ const t=TIERS.find(x=>x.key===k); const won=k!=='lose';
+        return '<span style="display:inline-block;width:10px;height:10px;border-radius:99px;background:'+(won?(k==='jackpot'?COL.coral:COL.classic):COL.line)+';" title="'+t.label+'"></span>'; }).join('');
+    }
+
+    /* ---- simulate many tickets fast, no animation ---- */
+    function simulate(k){
+      for(let i=0;i<k;i++){ const res=evaluate(); counts[res.tierKey]++; ticketsBought++; totalSpent+=TICKET_PRICE;
+        totalWon += (res.tierKey==='jackpot'?jackpot:res.prize); }
+      drawEVTable(); drawSummary(); drawMsgEl.textContent='Simulated '+k.toLocaleString()+' more tickets.';
+    }
+    function resetStats(){ TIERS.forEach(t=>counts[t.key]=0); ticketsBought=0; totalSpent=0; totalWon=0; history=[];
+      drawHistEl.innerHTML=''; drawMsgEl.textContent=''; resultGrid.querySelectorAll('.drawball').forEach(b=>{ b.textContent='—'; b.style.background='var(--paper-2)'; b.style.color='var(--ink-faint)'; b.style.borderStyle='dashed'; b.style.borderColor='var(--line)'; });
+      drawEVTable(); drawSummary(); }
+
+    const jackpotCtrl=UI.number({label:'Advertised jackpot ($)',value:jackpot,step:1000000,min:20000000,hint:'Changes the theoretical EV below (not what already happened in your simulated draws).',onchange:(v)=>{ jackpot=v||0; drawEVTable(); drawSummary(); }});
+    const ctrlBtns=UI.buttons([
+      {label:'Quick pick',onclick:quickPick},
+      {label:'Buy ticket & draw',primary:true,onclick:animateAndDraw},
+      {label:'Simulate 10,000 tickets',onclick:()=>simulate(10000)},
+      {label:'Reset stats',onclick:resetStats}
+    ]);
+    const summaryBox=document.createElement('div'); summaryBox.className='plot-card';
+    const tableWrap=document.createElement('div'); tableWrap.className='plot-card';
+    tableWrap.innerHTML='<div class="plot-title">Probability & expected value, by prize tier</div><div id="lotTable"></div>';
+    const tableEl=tableWrap.querySelector('#lotTable');
+
+    host.appendChild(UI.appGrid(
+      [jackpotCtrl,ctrlBtns,UI.note('Ticket price is <b>$2</b>. Odds are the real Powerball odds: 5 white numbers drawn from 69, plus 1 red Powerball drawn from 26. Every draw below uses fresh random numbers — your picks don\'t change your odds, just like real life!')],
+      [pickWrap,summaryBox,tableWrap]
+    ));
+
+    function drawSummary(){
+      const evFixed = TIERS.filter(t=>!t.prizeIsJackpot).reduce((s,t)=> s + (t.prize*t.combos/TOTAL), 0);
+      const evJackpot = jackpot * (1/TOTAL);
+      const evTotal = evFixed + evJackpot;
+      const evNet = evTotal - TICKET_PRICE;
+      const breakeven = (TICKET_PRICE - evFixed) * TOTAL;
+      const empNet = ticketsBought? (totalWon-totalSpent)/ticketsBought : null;
+      summaryBox.innerHTML='<div class="plot-title">Expected value of one $2 ticket</div>'+
+        '<div style="font-family:var(--mono);font-size:.8rem;line-height:1.8;padding:4px 2px;">'+
+        'Fixed-prize contribution &nbsp; = &nbsp; Σ (prize × P) &nbsp; = &nbsp; <b>$'+M.round(evFixed,4)+'</b><br>'+
+        'Jackpot contribution &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; = &nbsp; $'+jackpot.toLocaleString()+' × 1/'+TOTAL.toLocaleString()+' &nbsp; = &nbsp; <b>$'+M.round(evJackpot,4)+'</b><br>'+
+        'Total expected return &nbsp;&nbsp;&nbsp; = &nbsp; <b>$'+M.round(evTotal,4)+'</b><br>'+
+        'Minus ticket price &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; = &nbsp; − $'+TICKET_PRICE.toFixed(2)+'<br>'+
+        '<span style="border-top:1px dashed var(--line);display:inline-block;margin-top:4px;padding-top:4px;">Expected value per ticket &nbsp; = &nbsp; <b style="color:'+(evNet<0?COL.coral:COL.classic)+';font-size:.95rem;">'+(evNet>=0?'+':'−')+'$'+Math.abs(evNet).toFixed(4)+'</b></span><br>'+
+        '<span style="color:var(--ink-faint);">Jackpot needed to break even: ≈ <b style="color:var(--ink-soft);">$'+Math.round(breakeven).toLocaleString()+'</b></span>'+
+        (ticketsBought? '<br><span style="color:var(--ink-faint);">Your simulated average so far (net $/ticket over '+ticketsBought.toLocaleString()+' tickets): <b style="color:'+(empNet<0?COL.coral:COL.classic)+';">'+(empNet>=0?'+':'−')+'$'+Math.abs(empNet).toFixed(4)+'</b></span>' : '')+
+        '</div>';
+    }
+    function drawEVTable(){
+      const cards=TIERS.map(t=>{
+        const p=t.combos/TOTAL; const emp=ticketsBought? counts[t.key]/ticketsBought : 0;
+        const prizeShown = t.prizeIsJackpot ? jackpot : t.prize;
+        const net = prizeShown - TICKET_PRICE;
+        const col = t.key==='lose'?COL.faint:(t.key==='jackpot'?COL.coral:COL.classic);
+        return '<div style="border:1px solid var(--line);border-left:3px solid '+col+';border-radius:0 10px 10px 0;padding:10px 14px;margin-bottom:8px;">'+
+          '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;">'+
+            '<span style="font-weight:700;color:'+col+';">'+t.label+'</span>'+
+            '<span style="font-family:var(--mono);font-size:.76rem;color:var(--ink-soft);">win $'+prizeShown.toLocaleString()+' &nbsp;·&nbsp; net '+(net>=0?'+':'−')+'$'+Math.abs(net).toLocaleString()+'</span>'+
+          '</div>'+
+          '<div style="font-family:var(--mono);font-size:.72rem;color:var(--ink-faint);line-height:1.5;margin:5px 0 6px;">'+t.formula+' = <b style="color:var(--ink-soft);">'+t.combos.toLocaleString()+'</b> / '+TOTAL.toLocaleString()+'</div>'+
+          '<div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:6px;font-family:var(--mono);font-size:.76rem;">'+
+            '<span style="color:var(--ink-soft);">probability <b style="color:var(--ink);">'+(p*100).toPrecision(3)+'%</b> &nbsp; (1 in '+Math.round(1/p).toLocaleString()+')</span>'+
+            '<span style="color:var(--ink-faint);">dealt so far: '+counts[t.key].toLocaleString()+' &nbsp; empirical <b style="color:var(--ink-soft);">'+(ticketsBought?(emp*100).toPrecision(3)+'%':'—')+'</b></span>'+
+          '</div></div>';
+      }).join('');
+      tableEl.innerHTML='<div style="font-family:var(--mono);font-size:.76rem;color:var(--ink-faint);margin-bottom:10px;">Total possible tickets: C(69,5) × 26 = <b style="color:var(--ink-soft);">'+TOTAL.toLocaleString()+'</b> &nbsp;·&nbsp; tickets bought so far: <b style="color:var(--ink-soft);">'+ticketsBought.toLocaleString()+'</b></div>'+cards;
+    }
+    drawEVTable(); drawSummary();
+  }
+});
+
 /* ===== Probability : Discrete Uniform Calculator ===== */
 add({ id:'discrete-uniform', cat:'prob', diff:'intro', tag:'calculator', title:'Discrete Uniform Distribution',
   blurb:'Each value from a to b is equally likely. Explore probabilities and moments for the discrete uniform distribution.',
