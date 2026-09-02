@@ -1748,8 +1748,20 @@ add({ id:'poker-hands', cat:'classic', tag:'game', title:'Poker Hands — Deal &
   blurb:'Shuffle a 52-card deck and deal 5 cards. See what hand you get, then deal thousands of hands and watch the empirical frequencies converge to the theoretical probabilities.',
   build(host){
     const SUITS=[{s:'♠',c:'#1F2937'},{s:'♥',c:'#DC2626'},{s:'♦',c:'#DC2626'},{s:'♣',c:'#1F2937'}];
-    const HANDS=['Straight Flush','Four of a Kind','Full House','Flush','Straight','Three of a Kind','Two Pair','One Pair','High Card'];
-    const THEORY={'Straight Flush':40/2598960,'Four of a Kind':624/2598960,'Full House':3744/2598960,'Flush':5108/2598960,'Straight':10200/2598960,'Three of a Kind':54912/2598960,'Two Pair':123552/2598960,'One Pair':1098240/2598960,'High Card':1302540/2598960};
+    const TOTAL_HANDS=2598960; // C(52,5)
+    const HAND_INFO={
+      'Straight Flush':{count:40,  desc:'All 5 cards are the <b>same suit</b> AND their ranks are <b>consecutive</b> (e.g. 5♠6♠7♠8♠9♠).', formula:'10 sequences × C(4,1) suits = 10 × 4'},
+      'Four of a Kind':{count:624, desc:'4 cards share the <b>same rank</b> (e.g. four 7s), plus 1 unrelated card.', formula:'C(13,1) ranks × C(48,1) kicker = 13 × 48'},
+      'Full House':    {count:3744,desc:'3 cards of one rank + 2 cards of another rank (a triple + a pair).', formula:'C(13,1)×C(4,3) × C(12,1)×C(4,2) = 13×4 × 12×6'},
+      'Flush':         {count:5108,desc:'All 5 cards are the <b>same suit</b> — ranks do <i>not</i> need to be in order.', formula:'[C(13,5) × C(4,1)] − straight flushes = (1287×4) − 40'},
+      'Straight':      {count:10200,desc:'5 cards in <b>consecutive rank order</b> — suits do <i>not</i> need to match.', formula:'[10 sequences × 4⁵ suit choices] − straight flushes = 10240 − 40'},
+      'Three of a Kind':{count:54912,desc:'3 cards share the same rank, plus 2 unrelated cards of two different ranks.', formula:'C(13,1)×C(4,3) × C(12,2)×4×4 = 52 × 66×16'},
+      'Two Pair':      {count:123552,desc:'2 different pairs (e.g. two 9s and two Kings), plus 1 unrelated card.', formula:'C(13,2) × C(4,2)² × (11×4) = 78 × 36 × 44'},
+      'One Pair':      {count:1098240,desc:'Exactly 2 cards share the same rank, plus 3 unrelated cards of 3 different ranks.', formula:'C(13,1)×C(4,2) × C(12,3)×4³ = 78 × 220×64'},
+      'High Card':     {count:1302540,desc:'No pair, no flush, no straight — just whatever the highest card happens to be.', formula:'[C(13,5)−10 straights] × [4⁵−4 flushes] = 1277 × 1020'}
+    };
+    const HANDS=Object.keys(HAND_INFO);
+    const THEORY={}; HANDS.forEach(h=>THEORY[h]=HAND_INFO[h].count/TOTAL_HANDS);
     const HAND_COLOR={'Straight Flush':COL.coral,'Four of a Kind':COL.coral,'Full House':COL.amber,'Flush':COL.classic,'Straight':COL.classic,'Three of a Kind':COL.sampling,'Two Pair':COL.sampling,'One Pair':COL.faint,'High Card':COL.faint};
     function freshDeck(){ const d=[]; for(let s=0;s<4;s++) for(let r=2;r<=14;r++) d.push({r,s}); return d; }
     function rankLabel(r){ return r===14?'A':r===13?'K':r===12?'Q':r===11?'J':String(r); }
@@ -1821,20 +1833,22 @@ add({ id:'poker-hands', cat:'classic', tag:'game', title:'Poker Hands — Deal &
     }
     function reset(){ HANDS.forEach(h=>counts[h]=0); trials=0; history=[]; cardsEl.innerHTML=''; msgEl.textContent=''; histEl.innerHTML=''; drawTable(); }
     function drawTable(){
-      const rows=HANDS.map(h=>{
-        const emp=trials?counts[h]/trials:0;
-        return `<tr><td style="padding:5px 10px;font-weight:600;color:${HAND_COLOR[h]};">${h}</td>
-          <td style="padding:5px 10px;font-family:var(--mono);text-align:right;">${counts[h].toLocaleString()}</td>
-          <td style="padding:5px 10px;font-family:var(--mono);text-align:right;">${trials?M.round(emp*100,4)+'%':'—'}</td>
-          <td style="padding:5px 10px;font-family:var(--mono);text-align:right;color:var(--ink-faint);">${M.round(THEORY[h]*100,4)}%</td></tr>`;
+      const cards=HANDS.map(h=>{
+        const info=HAND_INFO[h]; const emp=trials?counts[h]/trials:0; const col=HAND_COLOR[h];
+        return `<div style="border:1px solid var(--line);border-left:3px solid ${col};border-radius:0 10px 10px 0;padding:10px 14px;margin-bottom:8px;">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;">
+            <span style="font-weight:700;color:${col};">${h}</span>
+            <span style="font-family:var(--mono);font-size:.76rem;color:var(--ink-soft);">theoretical <b style="color:var(--ink);">${M.round(THEORY[h]*100,4)}%</b></span>
+          </div>
+          <div style="font-size:.83rem;color:var(--ink-soft);margin:5px 0 6px;">${info.desc}</div>
+          <div style="font-family:var(--mono);font-size:.72rem;color:var(--ink-faint);line-height:1.5;">${info.formula} = <b style="color:var(--ink-soft);">${info.count.toLocaleString()}</b> / ${TOTAL_HANDS.toLocaleString()}</div>
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:6px;padding-top:6px;border-top:1px dashed var(--line);font-family:var(--mono);font-size:.76rem;">
+            <span style="color:var(--ink-faint);">dealt so far: ${counts[h].toLocaleString()}</span>
+            <span style="color:var(--ink-soft);">empirical <b style="color:var(--ink);">${trials?M.round(emp*100,4)+'%':'—'}</b></span>
+          </div>
+        </div>`;
       }).join('');
-      tableEl.innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:.84rem;">
-        <thead><tr style="border-bottom:1px solid var(--line);">
-          <th style="text-align:left;padding:5px 10px;font-family:var(--mono);font-size:.66rem;text-transform:uppercase;color:var(--ink-faint);">Hand</th>
-          <th style="text-align:right;padding:5px 10px;font-family:var(--mono);font-size:.66rem;text-transform:uppercase;color:var(--ink-faint);">Count</th>
-          <th style="text-align:right;padding:5px 10px;font-family:var(--mono);font-size:.66rem;text-transform:uppercase;color:var(--ink-faint);">Empirical %</th>
-          <th style="text-align:right;padding:5px 10px;font-family:var(--mono);font-size:.66rem;text-transform:uppercase;color:var(--ink-faint);">Theoretical %</th>
-        </tr></thead><tbody>${rows}<tr style="border-top:1px solid var(--line);"><td style="padding:5px 10px;font-weight:700;">Total</td><td style="padding:5px 10px;font-family:var(--mono);text-align:right;font-weight:700;">${trials.toLocaleString()}</td><td></td><td></td></tr></tbody></table>`;
+      tableEl.innerHTML=`<div style="font-family:var(--mono);font-size:.76rem;color:var(--ink-faint);margin-bottom:10px;">Total possible 5-card hands: C(52,5) = <b style="color:var(--ink-soft);">${TOTAL_HANDS.toLocaleString()}</b> &nbsp;·&nbsp; hands dealt so far: <b style="color:var(--ink-soft);">${trials.toLocaleString()}</b></div>${cards}`;
     }
     drawTable();
   }
