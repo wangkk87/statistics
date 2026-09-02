@@ -1742,6 +1742,104 @@ add({ id:'random-babies', cat:'classic', tag:'simulation', title:'Random Babies'
   }
 });
 
+/* ===== Classics : Poker Hands ===== */
+add({ id:'poker-hands', cat:'classic', tag:'game', title:'Poker Hands — Deal & Classify', diff:'intro',
+  questions:['Before simulating, rank the 9 hand types from most common to rarest — how close was your guess?','How many 5-card hands are possible from a 52-card deck? (Hint: it\'s a combination, not a permutation.)','Why is a flush rarer than a straight, even though both hands ignore one dimension — rank order for a flush, suit for a straight?'],
+  blurb:'Shuffle a 52-card deck and deal 5 cards. See what hand you get, then deal thousands of hands and watch the empirical frequencies converge to the theoretical probabilities.',
+  build(host){
+    const SUITS=[{s:'♠',c:'#1F2937'},{s:'♥',c:'#DC2626'},{s:'♦',c:'#DC2626'},{s:'♣',c:'#1F2937'}];
+    const HANDS=['Straight Flush','Four of a Kind','Full House','Flush','Straight','Three of a Kind','Two Pair','One Pair','High Card'];
+    const THEORY={'Straight Flush':40/2598960,'Four of a Kind':624/2598960,'Full House':3744/2598960,'Flush':5108/2598960,'Straight':10200/2598960,'Three of a Kind':54912/2598960,'Two Pair':123552/2598960,'One Pair':1098240/2598960,'High Card':1302540/2598960};
+    const HAND_COLOR={'Straight Flush':COL.coral,'Four of a Kind':COL.coral,'Full House':COL.amber,'Flush':COL.classic,'Straight':COL.classic,'Three of a Kind':COL.sampling,'Two Pair':COL.sampling,'One Pair':COL.faint,'High Card':COL.faint};
+    function freshDeck(){ const d=[]; for(let s=0;s<4;s++) for(let r=2;r<=14;r++) d.push({r,s}); return d; }
+    function rankLabel(r){ return r===14?'A':r===13?'K':r===12?'Q':r===11?'J':String(r); }
+    function classify(hand){
+      const ranks=hand.map(c=>c.r).sort((a,b)=>a-b);
+      const isFlush=hand.every(c=>c.s===hand[0].s);
+      const uniq=[...new Set(ranks)];
+      let isStraight=false;
+      if(uniq.length===5){
+        if(uniq[4]-uniq[0]===4) isStraight=true;
+        if(uniq.join(',')==='2,3,4,5,14') isStraight=true; // ace-low wheel
+      }
+      const freq={}; ranks.forEach(r=>freq[r]=(freq[r]||0)+1);
+      const counts=Object.values(freq).sort((a,b)=>b-a);
+      if(isStraight&&isFlush) return 'Straight Flush';
+      if(counts[0]===4) return 'Four of a Kind';
+      if(counts[0]===3&&counts[1]===2) return 'Full House';
+      if(isFlush) return 'Flush';
+      if(isStraight) return 'Straight';
+      if(counts[0]===3) return 'Three of a Kind';
+      if(counts[0]===2&&counts[1]===2) return 'Two Pair';
+      if(counts[0]===2) return 'One Pair';
+      return 'High Card';
+    }
+    let counts={}; HANDS.forEach(h=>counts[h]=0); let trials=0; let history=[];
+
+    const handWrap=document.createElement('div'); handWrap.className='plot-card';
+    handWrap.innerHTML=`<div class="plot-title">Deal a hand</div><div id="cards" style="display:flex;gap:8px;justify-content:center;padding:16px 0 6px;flex-wrap:wrap;"></div><div id="handMsg" style="text-align:center;font-family:var(--mono);font-size:.95rem;font-weight:700;min-height:1.6em;"></div><div id="handHist" style="display:flex;gap:4px;justify-content:center;flex-wrap:wrap;margin-top:8px;"></div>`;
+    const cardsEl=handWrap.querySelector('#cards'), msgEl=handWrap.querySelector('#handMsg'), histEl=handWrap.querySelector('#handHist');
+
+    const tableWrap=document.createElement('div'); tableWrap.className='plot-card';
+    tableWrap.innerHTML=`<div class="plot-title">Empirical vs. theoretical frequency</div><div id="handTable" style="overflow-x:auto;"></div>`;
+    const tableEl=tableWrap.querySelector('#handTable');
+
+    const dealBtn=UI.buttons([
+      {label:'Deal a hand',primary:true,onclick:()=>dealOne()},
+      {label:'Simulate 1,000',onclick:()=>simulate(1000)},
+      {label:'Simulate 100,000',onclick:()=>simulate(100000)},
+      {label:'Reset',onclick:reset}
+    ]);
+    host.appendChild(UI.appGrid([dealBtn,UI.note('There are <b>2,598,960</b> possible 5-card hands. A pair shows up about <b>42%</b> of the time; a straight flush shows up about <b>0.0015%</b> of the time — roughly once every 65,000 hands. Have a few students deal by hand first, then simulate thousands to see the long-run pattern.')],[handWrap,tableWrap]));
+
+    function renderCard(c){
+      const suit=SUITS[c.s];
+      const div=document.createElement('div');
+      div.style.cssText=`width:58px;height:82px;border-radius:8px;background:#fff;border:1px solid var(--line);box-shadow:var(--shadow-sm);display:flex;flex-direction:column;justify-content:space-between;padding:5px 6px;font-family:Georgia,serif;color:${suit.c};flex:none;`;
+      div.innerHTML=`<div style="font-size:.9rem;font-weight:700;line-height:1;">${rankLabel(c.r)}</div><div style="font-size:1.5rem;text-align:center;line-height:1;">${suit.s}</div><div style="font-size:.9rem;font-weight:700;line-height:1;align-self:flex-end;transform:rotate(180deg);">${rankLabel(c.r)}</div>`;
+      return div;
+    }
+    function dealOne(){
+      const deck=M.shuffle(freshDeck()); const hand=deck.slice(0,5);
+      const type=classify(hand);
+      cardsEl.innerHTML=''; hand.forEach(c=>cardsEl.appendChild(renderCard(c)));
+      msgEl.innerHTML=`<span style="color:${HAND_COLOR[type]}">${type}</span> <span style="font-weight:400;color:var(--ink-faint);">— about ${M.round(THEORY[type]*100,4)}% of hands</span>`;
+      counts[type]++; trials++;
+      history.unshift(type); if(history.length>12) history.pop();
+      drawHistory(); drawTable();
+    }
+    function drawHistory(){
+      histEl.innerHTML='';
+      history.forEach(t=>{ const dot=document.createElement('span');
+        dot.style.cssText=`display:inline-block;padding:2px 8px;border-radius:99px;font-family:var(--mono);font-size:.62rem;font-weight:600;color:#fff;background:${HAND_COLOR[t]};`;
+        dot.textContent=t; histEl.appendChild(dot); });
+    }
+    function simulate(k){
+      for(let i=0;i<k;i++){ const deck=M.shuffle(freshDeck()); const hand=deck.slice(0,5); const type=classify(hand); counts[type]++; trials++; }
+      drawTable();
+      cardsEl.innerHTML=''; msgEl.textContent=`Simulated ${k.toLocaleString()} more hands.`;
+    }
+    function reset(){ HANDS.forEach(h=>counts[h]=0); trials=0; history=[]; cardsEl.innerHTML=''; msgEl.textContent=''; histEl.innerHTML=''; drawTable(); }
+    function drawTable(){
+      const rows=HANDS.map(h=>{
+        const emp=trials?counts[h]/trials:0;
+        return `<tr><td style="padding:5px 10px;font-weight:600;color:${HAND_COLOR[h]};">${h}</td>
+          <td style="padding:5px 10px;font-family:var(--mono);text-align:right;">${counts[h].toLocaleString()}</td>
+          <td style="padding:5px 10px;font-family:var(--mono);text-align:right;">${trials?M.round(emp*100,4)+'%':'—'}</td>
+          <td style="padding:5px 10px;font-family:var(--mono);text-align:right;color:var(--ink-faint);">${M.round(THEORY[h]*100,4)}%</td></tr>`;
+      }).join('');
+      tableEl.innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:.84rem;">
+        <thead><tr style="border-bottom:1px solid var(--line);">
+          <th style="text-align:left;padding:5px 10px;font-family:var(--mono);font-size:.66rem;text-transform:uppercase;color:var(--ink-faint);">Hand</th>
+          <th style="text-align:right;padding:5px 10px;font-family:var(--mono);font-size:.66rem;text-transform:uppercase;color:var(--ink-faint);">Count</th>
+          <th style="text-align:right;padding:5px 10px;font-family:var(--mono);font-size:.66rem;text-transform:uppercase;color:var(--ink-faint);">Empirical %</th>
+          <th style="text-align:right;padding:5px 10px;font-family:var(--mono);font-size:.66rem;text-transform:uppercase;color:var(--ink-faint);">Theoretical %</th>
+        </tr></thead><tbody>${rows}<tr style="border-top:1px solid var(--line);"><td style="padding:5px 10px;font-weight:700;">Total</td><td style="padding:5px 10px;font-family:var(--mono);text-align:right;font-weight:700;">${trials.toLocaleString()}</td><td></td><td></td></tr></tbody></table>`;
+    }
+    drawTable();
+  }
+});
+
 /* ===== Probability : Discrete Uniform Calculator ===== */
 add({ id:'discrete-uniform', cat:'prob', diff:'intro', tag:'calculator', title:'Discrete Uniform Distribution',
   blurb:'Each value from a to b is equally likely. Explore probabilities and moments for the discrete uniform distribution.',
