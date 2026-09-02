@@ -1854,6 +1854,109 @@ add({ id:'poker-hands', cat:'classic', tag:'game', title:'Poker Hands — Deal &
   }
 });
 
+/* ===== Classics : Birthday Problem ===== */
+add({ id:'birthday-problem', cat:'classic', tag:'simulation', title:'The Birthday Problem — How Many People Until Two Share a Birthday?', diff:'inter',
+  questions:['Before running anything, guess: how many people need to be in a room before there\'s a 50% chance two share a birthday?','Why is the answer so much smaller than 365÷2 ≈ 183? What are we actually counting?','How does P(at least one match) relate to P(everyone has a different birthday)?'],
+  blurb:'Fill a room with n people, each given a random birthday, and watch the classic "paradox" play out: it takes far fewer people than most people guess before a shared birthday becomes likely.',
+  build(host){
+    function probNoMatch(n){ if(n<=0) return 1; if(n>365) return 0; let p=1; for(let i=0;i<n;i++) p*=(365-i)/365; return p; }
+    function probMatch(n){ return 1-probNoMatch(n); }
+    let n=25, trials=0, matches=0, room=[];
+
+    const wheelWrap=document.createElement('div'); wheelWrap.className='plot-card';
+    wheelWrap.innerHTML='<div class="plot-title">A room of <span id="nLabel">25</span> people — random birthdays</div>'+
+      '<div style="display:flex;justify-content:center;padding:10px 0;"><div id="wheel" style="position:relative;width:260px;height:260px;"></div></div>'+
+      '<div id="roomMsg" style="text-align:center;font-family:var(--mono);font-size:.86rem;font-weight:600;min-height:1.4em;"></div>'+
+      '<div id="matchList" style="font-family:var(--mono);font-size:.72rem;color:var(--ink-soft);text-align:center;min-height:1.2em;"></div>';
+    const wheelEl=wheelWrap.querySelector('#wheel'), nLabelEl=wheelWrap.querySelector('#nLabel'),
+      roomMsgEl=wheelWrap.querySelector('#roomMsg'), matchListEl=wheelWrap.querySelector('#matchList');
+
+    const formulaWrap=document.createElement('div'); formulaWrap.className='plot-card';
+    formulaWrap.innerHTML='<div class="plot-title">The exact calculation</div><div id="formulaBox" style="font-family:var(--mono);font-size:.82rem;line-height:1.9;"></div>';
+    const formulaEl=formulaWrap.querySelector('#formulaBox');
+
+    const plot=UI.plotCard('P(at least one shared birthday) vs. number of people',220);
+    const stats=UI.statsBox();
+    const nSlider=UI.slider({label:'People in the room (n)',min:2,max:100,value:25,fmt:v=>v,oninput:(v)=>{ n=v; nLabelEl.textContent=n; resetSim(); newRoom(); }});
+    const ctrl=UI.buttons([
+      {label:'New random room',primary:true,onclick:newRoom},
+      {label:'Simulate 1,000 rooms',onclick:()=>simulate(1000)},
+      {label:'Simulate 10,000 rooms',onclick:()=>simulate(10000)},
+      {label:'Reset',onclick:()=>{ resetSim(); newRoom(); }}
+    ]);
+    host.appendChild(UI.appGrid(
+      [nSlider,ctrl,stats,UI.note('It takes only <b>23</b> people for the probability to cross <b>50%</b>, and just <b>70</b> people to exceed <b>99.9%</b>. The trick: with n people there are C(n,2) possible pairs to compare, and that count grows much faster than n itself.')],
+      [wheelWrap,formulaWrap,plot]
+    ));
+
+    function newRoom(){ room=Array.from({length:n},()=>Math.floor(Math.random()*365)); renderWheel(); updateFormula(); updateRoomMsg(); updateStats(); }
+    function renderWheel(){
+      wheelEl.innerHTML='';
+      const circle=document.createElement('div'); circle.style.cssText='position:absolute;left:10px;top:10px;width:240px;height:240px;border-radius:99px;border:1px solid var(--line);'; wheelEl.appendChild(circle);
+      const monthDays=[0,31,59,90,120,151,181,212,243,273,304,334];
+      monthDays.forEach(d=>{ const ang=(d/365)*2*Math.PI - Math.PI/2; const x=130+120*Math.cos(ang), y=130+120*Math.sin(ang);
+        const tick=document.createElement('div'); tick.style.cssText='position:absolute;width:4px;height:4px;border-radius:99px;background:var(--ink-faint);left:'+(x-2)+'px;top:'+(y-2)+'px;'; wheelEl.appendChild(tick); });
+      const dayCounts={}; room.forEach(d=>dayCounts[d]=(dayCounts[d]||0)+1);
+      room.forEach((d,i)=>{
+        const ang=(d/365)*2*Math.PI - Math.PI/2; const x=130+100*Math.cos(ang), y=130+100*Math.sin(ang);
+        const matched=dayCounts[d]>1; const sz=matched?14:9;
+        const dot=document.createElement('div');
+        dot.style.cssText='position:absolute;width:'+sz+'px;height:'+sz+'px;border-radius:99px;left:'+(x-sz/2)+'px;top:'+(y-sz/2)+'px;background:'+(matched?COL.coral:COL.sampling)+';border:1.5px solid #fff;box-shadow:var(--shadow-sm);'+(matched?'animation:pulse 1.4s infinite;':'');
+        dot.title='Person '+(i+1)+' — '+dayName(d);
+        wheelEl.appendChild(dot);
+      });
+    }
+    function dayName(d){ const date=new Date(2024,0,1); date.setDate(date.getDate()+d); return date.toLocaleDateString('en-US',{month:'short',day:'numeric'}); }
+    function updateRoomMsg(){
+      const dayCounts={}; room.forEach(d=>dayCounts[d]=(dayCounts[d]||0)+1);
+      const matchedDays=Object.entries(dayCounts).filter(([d,c])=>c>1);
+      if(matchedDays.length){ roomMsgEl.innerHTML='<span style="color:'+COL.coral+';">Match found! 🎉</span>';
+        matchListEl.textContent=matchedDays.map(([d,c])=>dayName(+d)+': '+c+' people').join('  ·  '); }
+      else{ roomMsgEl.innerHTML='<span style="color:'+COL.faint+';">No shared birthdays this time.</span>'; matchListEl.textContent=''; }
+    }
+    function updateFormula(){
+      const terms=[]; for(let i=0;i<n;i++) terms.push(365-i);
+      const termStr = n<=6 ? terms.join(' × ') : terms.slice(0,3).join(' × ')+' × ⋯ × '+terms.slice(-2).join(' × ');
+      const noMatch=probNoMatch(n), match=probMatch(n);
+      formulaEl.innerHTML =
+        'P(no shared birthday) = (365 × 364 × ⋯ × (365−n+1)) / 365ⁿ<br>'+
+        '&nbsp; &nbsp; for n = '+n+':<br>'+
+        '&nbsp; &nbsp; = ('+termStr+') / 365<sup>'+n+'</sup><br>'+
+        '&nbsp; &nbsp; ≈ <b>'+M.round(noMatch,4)+'</b><br><br>'+
+        'P(at least two share) = 1 − '+M.round(noMatch,4)+'<br>'+
+        '&nbsp; &nbsp; ≈ <b style="color:'+COL.coral+';font-size:.95rem;">'+M.round(match*100,2)+'%</b>';
+    }
+    function updateStats(){
+      stats.set([
+        {k:'people in room',v:n},
+        {k:'theoretical P(match)',v:M.round(probMatch(n)*100,2)+'%',accent:1},
+        {k:'simulated rooms',v:trials},
+        {k:'empirical P(match)',v:trials?M.round(100*matches/trials,2)+'%':'—',accent:1}
+      ]);
+      drawCurve();
+    }
+    function simulate(k){
+      for(let t=0;t<k;t++){ const bdays=new Set(); let hit=false;
+        for(let i=0;i<n;i++){ const d=Math.floor(Math.random()*365); if(bdays.has(d)) hit=true; bdays.add(d); }
+        trials++; if(hit) matches++; }
+      updateStats();
+    }
+    function resetSim(){ trials=0; matches=0; updateStats(); }
+    function drawCurve(){
+      const ch=plot.chart(); const maxN=80;
+      ch.setX(1,maxN); ch.setY(0,1); ch.clear(); ch.grid();
+      ch.axisY([0,0.25,0.5,0.75,1],v=>(v*100).toFixed(0)+'%'); ch.axisX([1,10,20,23,30,40,50,60,70,80],v=>v);
+      ch.curve(x=>probMatch(Math.round(x)),COL.classic,2.2);
+      ch.line(1,0.5,maxN,0.5,hexA(COL.coral,.5),1.5,[5,4]);
+      ch.vline(23,hexA(COL.amber,.6),1.5,[3,3]);
+      ch.vline(Math.min(n,maxN),COL.ink,2,[]);
+      const ctx=ch.ctx; ctx.fillStyle=COL.ink; ctx.font='bold 10px "JetBrains Mono",monospace'; ctx.textAlign='center';
+      ctx.fillText('n='+n,ch.X(Math.min(n,maxN)),ch.py1-4);
+    }
+    newRoom();
+  }
+});
+
 /* ===== Classics : Lottery Expected Value ===== */
 add({ id:'lottery-ev', cat:'classic', tag:'game', title:'Lottery — Pick Your Numbers (Powerball-Style)', diff:'inter',
   questions:['Before looking at the table, guess: is the expected value of a $2 ticket positive or negative?','How big would the jackpot need to be for buying a ticket to have positive expected value?','Why can something have a negative expected value and still be worth playing to some people?'],
