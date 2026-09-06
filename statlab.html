@@ -2850,20 +2850,25 @@ add({ id:'anova-sim', cat:'classic', tag:'simulation', title:'One-Way ANOVA Simu
 /* ===== Classics : The Poisoned Wine Problem ===== */
 add({ id:'poison-wine', cat:'classic', tag:'game', title:'The Poisoned Wine Problem — Binary Detective Mice', diff:'inter',
   questions:[
-    'With 2 mice, what is the maximum number of bottles you could uniquely identify?',
-    'Why does doubling the number of bottles only ever require ONE additional mouse?',
+    'With 2 mice, what is the maximum number of bottles you could uniquely identify? Why is it 3 and not 4?',
+    'Why does (roughly) doubling the number of bottles only ever require ONE additional mouse?',
     'How many mice would you need to find a single poisoned bottle among 1,000,000?'
   ],
-  blurb:'One bottle out of many is secretly poisoned. Assign each mouse to a binary digit, let them taste-test overnight, then decode which mice got sick to pinpoint the poisoned bottle — using exponentially fewer mice than bottles.',
+  blurb:'One bottle out of many is secretly poisoned. Give each mouse a "drinking list" built from binary digits, let them taste-test overnight, then decode which mice got sick to pinpoint the poisoned bottle — using exponentially fewer mice than bottles.',
   build(host){
-    const PRESETS=[{n:3,label:'3 bottles'},{n:6,label:'6 bottles'},{n:16,label:'16 bottles'},{n:64,label:'64 bottles'},{n:1000,label:'1000 bottles (the classic riddle!)'}];
+    const PRESETS=[{n:3,label:'3 bottles'},{n:6,label:'6 bottles'},{n:7,label:'7 bottles'},{n:15,label:'15 bottles'},{n:63,label:'63 bottles'},{n:1000,label:'1000 bottles (the classic riddle!)'}];
     let N=3, m=miceNeeded(N);
     let stage='idle'; // idle -> hidden -> fed -> revealed
-    let poison=-1, guess=-1;
+    let poison=-1, guess=-1;   // bottle numbers are 1-indexed (1..N); code 00…0 is never used
     let rounds=0, correct=0;
 
-    function miceNeeded(n){ return n<=1?0:Math.ceil(Math.log2(n)); }
-    function codeOf(i,mm){ return i.toString(2).padStart(mm,'0'); }
+    // smallest m with 2^m - 1 >= n
+    function miceNeeded(n){ return n<=0?0:Math.ceil(Math.log2(n+1)); }
+    function capacity(mm){ return Math.pow(2,mm)-1; }
+    function codeOf(i,mm){ return i.toString(2).padStart(mm,'0'); }          // MSB … LSB
+    function mouseDrinks(j,i){ return ((i>>j)&1)===1; }                        // mouse j (0-based, M1 = bit 0 = LSB) drinks bottle i?
+    function mouseVector(j){ const v=[]; for(let i=1;i<=N;i++) v.push(mouseDrinks(j,i)?1:0); return v; }
+
     function mouseSVG(state){ // state: 'alive' | 'dead'
       const dead = state==='dead';
       const body = dead? '#B9B4C9' : '#D9C7A8';
@@ -2890,43 +2895,45 @@ add({ id:'poison-wine', cat:'classic', tag:'game', title:'The Poisoned Wine Prob
 
     // ---- DOM shell ----
     const presetRow=UI.buttons(PRESETS.map(p=>({label:p.label,onclick:()=>{ nSlider.set(p.n); setN(p.n); }})));
-    const nSlider=UI.slider({label:'Number of wine bottles (N)',min:2,max:1024,value:3,fmt:v=>v,oninput:(v)=>setN(v)});
+    const nSlider=UI.slider({label:'Number of wine bottles (N)',min:2,max:1023,value:3,fmt:v=>v,oninput:(v)=>setN(v)});
     const showCodes=document.createElement('div'); showCodes.className='ctrl';
-    showCodes.innerHTML=`<label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" id="codeToggle" style="width:auto;"> Show binary code cheat-sheet</label>`;
+    showCodes.innerHTML=`<label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" id="codeToggle" style="width:auto;"> Show drinking lists (cheat-sheet)</label>`;
     const actionBtns=UI.buttons([
       {label:'🎲 Hide poison in a random bottle',primary:true,onclick:hidePoison},
       {label:'🧪 Feed the mice overnight',onclick:feedMice},
       {label:'👁 Reveal poisoned bottle',onclick:reveal},
     ]);
     const stats=UI.statsBox();
-    const note=UI.note('');
 
     const miceCard=document.createElement('div'); miceCard.className='plot-card';
-    miceCard.innerHTML=`<div class="plot-title">Mice on duty</div><div id="miceRow" style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;padding:10px 0;"></div>`;
+    miceCard.innerHTML=`<div class="plot-title">Mice on duty</div>
+      <div id="miceRow" style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;padding:10px 0;"></div>
+      <div id="vecBox" style="font-family:var(--mono);font-size:.74rem;line-height:1.8;color:var(--ink-soft);text-align:center;"></div>`;
 
     const bottleCard=document.createElement('div'); bottleCard.className='plot-card';
     bottleCard.innerHTML=`<div class="plot-title">Wine bottles — click one to guess</div>
-      <div id="bottleGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(38px,1fr));gap:6px;max-height:280px;overflow-y:auto;padding:6px;"></div>
-      <div id="msg" style="text-align:center;font-family:var(--mono);font-size:.82rem;color:var(--ink-soft);min-height:2.2em;padding-top:6px;"></div>
-      <div id="decodeBox" style="text-align:center;font-family:var(--mono);font-size:.8rem;min-height:1.4em;"></div>`;
+      <div id="msg" style="text-align:center;font-family:var(--mono);font-size:.84rem;color:var(--ink);min-height:2.2em;padding:4px 0 8px;"></div>
+      <div id="decodeBox" style="text-align:center;font-family:var(--mono);font-size:.8rem;min-height:1.4em;padding-bottom:6px;"></div>
+      <div id="bottleGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(40px,1fr));gap:6px;max-height:300px;overflow-y:auto;padding:6px;"></div>`;
 
-    const chartCard=UI.plotCard('Mice needed vs. bottles (doubling bottles costs just ONE more mouse)',220);
+    const chartCard=UI.plotCard('Mice needed vs. bottles — each extra mouse (roughly) DOUBLES the bottles you can test',220);
 
     host.appendChild(UI.appGrid(
-      [presetRow,nSlider,showCodes,actionBtns,stats,note],
+      [presetRow,nSlider,showCodes,actionBtns,stats],
       [miceCard,bottleCard,chartCard]
     ));
 
     const miceRow=miceCard.querySelector('#miceRow');
+    const vecBox=miceCard.querySelector('#vecBox');
     const bottleGrid=bottleCard.querySelector('#bottleGrid');
     const msgEl=bottleCard.querySelector('#msg');
     const decodeBox=bottleCard.querySelector('#decodeBox');
     const codeToggle=showCodes.querySelector('#codeToggle');
-    codeToggle.addEventListener('change',renderBottles);
+    codeToggle.addEventListener('change',()=>{ renderBottles(); renderVectors(); });
 
     function setN(v){ N=Math.round(v); m=miceNeeded(N); stage='idle'; poison=-1; guess=-1;
-      renderMice(); renderBottles(); updateButtons(); drawChart();
-      msgEl.textContent=`Ready — ${m} mice can uniquely identify any one of ${N} bottles (2^${m} = ${Math.pow(2,m)} ≥ ${N}).`;
+      renderMice(); renderVectors(); renderBottles(); updateButtons(); drawChart();
+      msgEl.innerHTML=`Ready — <b>${m}</b> mice can identify any one of <b>${N}</b> bottles (2<sup>${m}</sup> − 1 = ${capacity(m)} ≥ ${N}). Start by hiding the poison.`;
       decodeBox.innerHTML=''; updateStats(); }
 
     function renderMice(){
@@ -2938,23 +2945,45 @@ add({ id:'poison-wine', cat:'classic', tag:'game', title:'The Poisoned Wine Prob
       }
     }
 
+    // "drinking list" per mouse: which bottles (1..N) it tastes, as a 0/1 vector
+    function renderVectors(){
+      if(!codeToggle.checked){ vecBox.innerHTML=''; return; }
+      if(N>16){ vecBox.innerHTML=`<span style="color:var(--ink-faint)">Drinking-list vectors are shown for N ≤ 16 — for larger N, read each bottle's binary label instead.</span>`; return; }
+      const header=`<div style="color:var(--ink-faint)">bottle&nbsp;&nbsp;${Array.from({length:N},(_,i)=>String(i+1).padStart(2,' ')).join(' ')}</div>`;
+      const rows=[];
+      for(let j=0;j<m;j++){ const v=mouseVector(j); rows.push(`<div><b>M${j+1}</b> drinks&nbsp;( ${v.map(x=>x?'<b style="color:var(--c-classic)">1</b>':'0').join(', ')} )</div>`); }
+      vecBox.innerHTML=header+rows.join('');
+    }
+
     function renderBottles(){
       bottleGrid.innerHTML='';
-      const showC=codeToggle.checked;
-      for(let i=0;i<N;i++){
+      const showC=codeToggle.checked && N<=128;
+      for(let i=1;i<=N;i++){
         const b=document.createElement('button'); b.className='abtn bottle-btn'; b.dataset.i=i;
-        b.style.cssText='padding:6px 2px;font-size:.85rem;line-height:1.1;display:flex;flex-direction:column;align-items:center;gap:2px;';
+        b.title=`Bottle ${i} — code ${codeOf(i,m)} (tasted by: ${Array.from({length:m},(_,j)=>mouseDrinks(j,i)?'M'+(j+1):null).filter(Boolean).join(', ')||'none'})`;
+        b.style.cssText='padding:6px 2px;font-size:.85rem;line-height:1.1;display:flex;flex-direction:column;align-items:center;gap:2px;transition:.12s;';
         b.innerHTML=`🍷<span style="font-family:var(--mono);font-size:.62rem;color:var(--ink-faint);">${i}</span>${showC?`<span style="font-family:var(--mono);font-size:.55rem;color:var(--c-classic);">${codeOf(i,m)}</span>`:''}`;
         b.onclick=()=>onBottleClick(i);
         bottleGrid.appendChild(b);
       }
     }
 
+    function highlightGuess(){
+      [...bottleGrid.querySelectorAll('.bottle-btn')].forEach(b=>{
+        const isG=(+b.dataset.i===guess);
+        b.style.background = isG ? hexA(COL.classic,.22) : '';
+        b.style.borderColor = isG ? COL.classic : '';
+        b.style.boxShadow = isG ? `0 0 0 3px ${hexA(COL.classic,.35)}` : '';
+        b.style.transform = isG ? 'scale(1.08)' : '';
+      });
+    }
+
     function onBottleClick(i){
-      if(stage!=='fed') return; // can only guess after mice have been fed and before/at reveal
-      guess=i;
-      [...bottleGrid.querySelectorAll('.bottle-btn')].forEach(b=>{ b.style.outline = (+b.dataset.i===guess) ? `3px solid var(--c-classic)` : 'none'; });
-      msgEl.innerHTML=`Your guess: bottle <b>${guess}</b>. Click <b>Reveal</b> when ready.`;
+      if(stage==='idle'){ msgEl.innerHTML=`⚠️ First click <b>🎲 Hide poison</b> to start a round.`; return; }
+      if(stage==='hidden'){ msgEl.innerHTML=`⚠️ Feed the mice first! You need to see which mice get sick before you can deduce the bottle.`; return; }
+      if(stage==='revealed'){ msgEl.innerHTML=`This round is over — click <b>🎲 Hide poison</b> to play again.`; return; }
+      guess=i; highlightGuess();
+      msgEl.innerHTML=`✅ Your guess: bottle <b>${guess}</b> (code ${codeOf(guess,m)}). Click <b>👁 Reveal</b> to check.`;
     }
 
     function updateButtons(){
@@ -2965,21 +2994,19 @@ add({ id:'poison-wine', cat:'classic', tag:'game', title:'The Poisoned Wine Prob
     }
 
     function hidePoison(){
-      poison=Math.floor(Math.random()*N); guess=-1; stage='hidden';
+      poison=1+Math.floor(Math.random()*N); guess=-1; stage='hidden';
       renderMice(); renderBottles();
-      msgEl.textContent='A bottle has been secretly poisoned. Feed the mice to find out which mice react!';
+      msgEl.innerHTML='🤫 A bottle has been secretly poisoned. Now click <b>🧪 Feed the mice</b> to see which mice react.';
       decodeBox.innerHTML=''; updateButtons();
     }
 
     function feedMice(){
       if(stage!=='hidden') return;
-      const code=codeOf(poison,m);
       [...miceRow.querySelectorAll('.mouse-icon')].forEach((el,j)=>{
-        const bit=code[m-1-j]; // bit j (least significant = mouse 1)
-        setTimeout(()=>{ if(bit==='1'){ el.innerHTML=mouseSVG('dead'); } },j*120);
+        setTimeout(()=>{ if(mouseDrinks(j,poison)){ el.innerHTML=mouseSVG('dead'); } },j*120);
       });
       stage='fed';
-      msgEl.innerHTML='Overnight results are in! Look at which mice got sick, decode the binary pattern, then click the bottle you think is poisoned.';
+      msgEl.innerHTML='🔍 Results are in! Read the sick mice as binary (M1 = rightmost digit), then <b>click the bottle</b> you think is poisoned.';
       updateButtons();
     }
 
@@ -2990,14 +3017,19 @@ add({ id:'poison-wine', cat:'classic', tag:'game', title:'The Poisoned Wine Prob
       if(isCorrect) correct++;
       const code=codeOf(poison,m);
       [...bottleGrid.querySelectorAll('.bottle-btn')].forEach(b=>{
-        if(+b.dataset.i===poison){ b.style.outline='3px solid var(--c-infer)'; b.innerHTML=`☠️<span style="font-family:var(--mono);font-size:.62rem;color:var(--ink-faint);">${poison}</span>`; }
+        if(+b.dataset.i===poison){
+          b.style.borderColor=COL.coral; b.style.boxShadow=`0 0 0 3px ${hexA(COL.coral,.4)}`; b.style.background=hexA(COL.coral,.15);
+          b.innerHTML=`☠️<span style="font-family:var(--mono);font-size:.62rem;color:var(--ink-faint);">${poison}</span>`;
+          b.scrollIntoView({block:'nearest'});
+        }
       });
       msgEl.innerHTML = guess<0
         ? `☠️ The poisoned bottle was <b>${poison}</b>. (You didn't lock in a guess — click a bottle next time before revealing!)`
         : isCorrect
-          ? `✅ Correct! Bottle <b>${poison}</b> was indeed poisoned.`
+          ? `🎉 Correct! Bottle <b>${poison}</b> was indeed poisoned.`
           : `❌ Not quite — you guessed ${guess}, but it was bottle <b>${poison}</b>.`;
-      decodeBox.innerHTML=`Dead-mouse pattern (M${m}…M1): <b>${code}</b> in binary &nbsp;=&nbsp; <b>${poison}</b> in decimal`;
+      const sick=Array.from({length:m},(_,j)=>mouseDrinks(j,poison)?'M'+(j+1):null).filter(Boolean).join(', ')||'none';
+      decodeBox.innerHTML=`Sick mice: <b>${sick}</b> &nbsp;→&nbsp; pattern (M${m}…M1) = <b>${code}</b> in binary &nbsp;=&nbsp; <b>${poison}</b> in decimal`;
       updateButtons(); updateStats();
     }
 
@@ -3005,7 +3037,7 @@ add({ id:'poison-wine', cat:'classic', tag:'game', title:'The Poisoned Wine Prob
       stats.set([
         {k:'bottles (N)',v:N},
         {k:'mice needed',v:m,accent:1},
-        {k:'capacity 2^mice',v:Math.pow(2,m)},
+        {k:'max bottles 2^m − 1',v:capacity(m)},
         {k:'rounds played',v:rounds},
         {k:'correct guesses',v:rounds? `${correct}/${rounds}` : '—',accent:1},
       ]);
@@ -3014,16 +3046,17 @@ add({ id:'poison-wine', cat:'classic', tag:'game', title:'The Poisoned Wine Prob
     function drawChart(){
       const ch=chartCard.chart(); const maxM=10;
       ch.setX(0,maxM).setY(0,maxM+0.5); ch.clear(); ch.grid();
-      ch.axisX(Array.from({length:maxM+1},(_,i)=>i), v=>Math.pow(2,v).toLocaleString());
+      ch.axisX(Array.from({length:maxM+1},(_,i)=>i), v=>v===0?'0':(Math.pow(2,v)-1).toLocaleString());
       ch.axisY(Array.from({length:maxM+1},(_,i)=>i).filter(v=>v%2===0), v=>v);
       for(let mm=1; mm<=maxM; mm++){ ch.bars([{lo:mm-1,hi:mm,count:mm}], hexA(COL.classic,.55)); }
-      const x=Math.min(maxM,Math.log2(N));
+      const x=Math.min(maxM,Math.log2(N+1));
       ch.vline(x,COL.coral,2,[5,3]);
       const ctx=ch.ctx; ctx.fillStyle=COL.coral; ctx.font='bold 10px "JetBrains Mono",monospace'; ctx.textAlign='center';
       ctx.fillText(`N=${N}, mice=${m}`, ch.X(x), ch.py1-4);
+      ch.xlabel('max bottles = 2^m − 1');
     }
 
-    host.appendChild(UI.note('<b>The classic version of this puzzle:</b> 1000 bottles of wine, exactly one poisoned. With only <b>10</b> mice, you can find it — because 2<sup>10</sup> = 1024 ≥ 1000. Each mouse is a "bit": it tastes every bottle whose index has a 1 in that bit position. Whichever mice die overnight, read their pattern as binary — that number IS the poisoned bottle.'));
+    host.appendChild(UI.note('<b>How the "drinking lists" work:</b> number the bottles 1, 2, 3, … and write each number in binary. Mouse M1 drinks every bottle whose <em>last</em> binary digit is 1, M2 every bottle whose <em>second-to-last</em> digit is 1, and so on. With 2 mice and 3 bottles: M1 drinks (1,&nbsp;0,&nbsp;1) and M2 drinks (0,&nbsp;1,&nbsp;1). Because the all-zero code (no mouse drinks) is never assigned to a bottle, <b>m mice can distinguish 2<sup>m</sup> − 1 bottles</b>: 2 mice → 3, 3 mice → 7, 10 mice → 1023. That is why the classic riddle — <b>1000 bottles, one poisoned</b> — needs only <b>10</b> mice.'));
 
     setN(3);
   }
