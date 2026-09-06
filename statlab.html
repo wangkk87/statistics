@@ -2847,6 +2847,189 @@ add({ id:'anova-sim', cat:'classic', tag:'simulation', title:'One-Way ANOVA Simu
   }
 });
 
+/* ===== Classics : The Poisoned Wine Problem ===== */
+add({ id:'poison-wine', cat:'classic', tag:'game', title:'The Poisoned Wine Problem — Binary Detective Mice', diff:'inter',
+  questions:[
+    'With 2 mice, what is the maximum number of bottles you could uniquely identify?',
+    'Why does doubling the number of bottles only ever require ONE additional mouse?',
+    'How many mice would you need to find a single poisoned bottle among 1,000,000?'
+  ],
+  blurb:'One bottle out of many is secretly poisoned. Assign each mouse to a binary digit, let them taste-test overnight, then decode which mice got sick to pinpoint the poisoned bottle — using exponentially fewer mice than bottles.',
+  build(host){
+    const PRESETS=[{n:3,label:'3 bottles'},{n:6,label:'6 bottles'},{n:16,label:'16 bottles'},{n:64,label:'64 bottles'},{n:1000,label:'1000 bottles (the classic riddle!)'}];
+    let N=3, m=miceNeeded(N);
+    let stage='idle'; // idle -> hidden -> fed -> revealed
+    let poison=-1, guess=-1;
+    let rounds=0, correct=0;
+
+    function miceNeeded(n){ return n<=1?0:Math.ceil(Math.log2(n)); }
+    function codeOf(i,mm){ return i.toString(2).padStart(mm,'0'); }
+    function mouseSVG(state){ // state: 'alive' | 'dead'
+      const dead = state==='dead';
+      const body = dead? '#B9B4C9' : '#D9C7A8';
+      const ear  = dead? '#8B879C' : '#3F3A55';
+      const eye  = dead? '#8B879C' : '#211E2E';
+      const rot  = dead? 'rotate(-6deg)' : 'rotate(0deg)';
+      return `<svg width="42" height="42" viewBox="0 0 42 42" style="transform:${rot};transition:.25s;">
+        <circle cx="11" cy="9" r="6.5" fill="${ear}"/>
+        <circle cx="31" cy="9" r="6.5" fill="${ear}"/>
+        <circle cx="21" cy="22" r="14" fill="${body}"/>
+        ${dead
+          ? `<line x1="14" y1="20" x2="18" y2="24" stroke="${eye}" stroke-width="2" stroke-linecap="round"/>
+             <line x1="18" y1="20" x2="14" y2="24" stroke="${eye}" stroke-width="2" stroke-linecap="round"/>
+             <line x1="24" y1="20" x2="28" y2="24" stroke="${eye}" stroke-width="2" stroke-linecap="round"/>
+             <line x1="28" y1="20" x2="24" y2="24" stroke="${eye}" stroke-width="2" stroke-linecap="round"/>`
+          : `<circle cx="16" cy="22" r="2" fill="${eye}"/><circle cx="26" cy="22" r="2" fill="${eye}"/>`}
+        <ellipse cx="21" cy="29" rx="3" ry="2.2" fill="${dead?'#8B879C':'#F43F5E'}"/>
+        <line x1="6" y1="27" x2="16" y2="26" stroke="${eye}" stroke-width="1"/>
+        <line x1="6" y1="31" x2="16" y2="29" stroke="${eye}" stroke-width="1"/>
+        <line x1="36" y1="27" x2="26" y2="26" stroke="${eye}" stroke-width="1"/>
+        <line x1="36" y1="31" x2="26" y2="29" stroke="${eye}" stroke-width="1"/>
+      </svg>`;
+    }
+
+    // ---- DOM shell ----
+    const presetRow=UI.buttons(PRESETS.map(p=>({label:p.label,onclick:()=>{ nSlider.set(p.n); setN(p.n); }})));
+    const nSlider=UI.slider({label:'Number of wine bottles (N)',min:2,max:1024,value:3,fmt:v=>v,oninput:(v)=>setN(v)});
+    const showCodes=document.createElement('div'); showCodes.className='ctrl';
+    showCodes.innerHTML=`<label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" id="codeToggle" style="width:auto;"> Show binary code cheat-sheet</label>`;
+    const actionBtns=UI.buttons([
+      {label:'🎲 Hide poison in a random bottle',primary:true,onclick:hidePoison},
+      {label:'🧪 Feed the mice overnight',onclick:feedMice},
+      {label:'👁 Reveal poisoned bottle',onclick:reveal},
+    ]);
+    const stats=UI.statsBox();
+    const note=UI.note('');
+
+    const miceCard=document.createElement('div'); miceCard.className='plot-card';
+    miceCard.innerHTML=`<div class="plot-title">Mice on duty</div><div id="miceRow" style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;padding:10px 0;"></div>`;
+
+    const bottleCard=document.createElement('div'); bottleCard.className='plot-card';
+    bottleCard.innerHTML=`<div class="plot-title">Wine bottles — click one to guess</div>
+      <div id="bottleGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(38px,1fr));gap:6px;max-height:280px;overflow-y:auto;padding:6px;"></div>
+      <div id="msg" style="text-align:center;font-family:var(--mono);font-size:.82rem;color:var(--ink-soft);min-height:2.2em;padding-top:6px;"></div>
+      <div id="decodeBox" style="text-align:center;font-family:var(--mono);font-size:.8rem;min-height:1.4em;"></div>`;
+
+    const chartCard=UI.plotCard('Mice needed vs. bottles (doubling bottles costs just ONE more mouse)',220);
+
+    host.appendChild(UI.appGrid(
+      [presetRow,nSlider,showCodes,actionBtns,stats,note],
+      [miceCard,bottleCard,chartCard]
+    ));
+
+    const miceRow=miceCard.querySelector('#miceRow');
+    const bottleGrid=bottleCard.querySelector('#bottleGrid');
+    const msgEl=bottleCard.querySelector('#msg');
+    const decodeBox=bottleCard.querySelector('#decodeBox');
+    const codeToggle=showCodes.querySelector('#codeToggle');
+    codeToggle.addEventListener('change',renderBottles);
+
+    function setN(v){ N=Math.round(v); m=miceNeeded(N); stage='idle'; poison=-1; guess=-1;
+      renderMice(); renderBottles(); updateButtons(); drawChart();
+      msgEl.textContent=`Ready — ${m} mice can uniquely identify any one of ${N} bottles (2^${m} = ${Math.pow(2,m)} ≥ ${N}).`;
+      decodeBox.innerHTML=''; updateStats(); }
+
+    function renderMice(){
+      miceRow.innerHTML='';
+      for(let j=0;j<m;j++){
+        const wrap=document.createElement('div'); wrap.style.cssText='text-align:center;font-family:var(--mono);font-size:.68rem;color:var(--ink-faint);';
+        wrap.innerHTML=`<div class="mouse-icon" data-j="${j}">${mouseSVG('alive')}</div>M${j+1}`;
+        miceRow.appendChild(wrap);
+      }
+    }
+
+    function renderBottles(){
+      bottleGrid.innerHTML='';
+      const showC=codeToggle.checked;
+      for(let i=0;i<N;i++){
+        const b=document.createElement('button'); b.className='abtn bottle-btn'; b.dataset.i=i;
+        b.style.cssText='padding:6px 2px;font-size:.85rem;line-height:1.1;display:flex;flex-direction:column;align-items:center;gap:2px;';
+        b.innerHTML=`🍷<span style="font-family:var(--mono);font-size:.62rem;color:var(--ink-faint);">${i}</span>${showC?`<span style="font-family:var(--mono);font-size:.55rem;color:var(--c-classic);">${codeOf(i,m)}</span>`:''}`;
+        b.onclick=()=>onBottleClick(i);
+        bottleGrid.appendChild(b);
+      }
+    }
+
+    function onBottleClick(i){
+      if(stage!=='fed') return; // can only guess after mice have been fed and before/at reveal
+      guess=i;
+      [...bottleGrid.querySelectorAll('.bottle-btn')].forEach(b=>{ b.style.outline = (+b.dataset.i===guess) ? `3px solid var(--c-classic)` : 'none'; });
+      msgEl.innerHTML=`Your guess: bottle <b>${guess}</b>. Click <b>Reveal</b> when ready.`;
+    }
+
+    function updateButtons(){
+      const btns=actionBtns.querySelectorAll('button');
+      btns[0].disabled = false;
+      btns[1].disabled = stage!=='hidden';
+      btns[2].disabled = stage!=='fed';
+    }
+
+    function hidePoison(){
+      poison=Math.floor(Math.random()*N); guess=-1; stage='hidden';
+      renderMice(); renderBottles();
+      msgEl.textContent='A bottle has been secretly poisoned. Feed the mice to find out which mice react!';
+      decodeBox.innerHTML=''; updateButtons();
+    }
+
+    function feedMice(){
+      if(stage!=='hidden') return;
+      const code=codeOf(poison,m);
+      [...miceRow.querySelectorAll('.mouse-icon')].forEach((el,j)=>{
+        const bit=code[m-1-j]; // bit j (least significant = mouse 1)
+        setTimeout(()=>{ if(bit==='1'){ el.innerHTML=mouseSVG('dead'); } },j*120);
+      });
+      stage='fed';
+      msgEl.innerHTML='Overnight results are in! Look at which mice got sick, decode the binary pattern, then click the bottle you think is poisoned.';
+      updateButtons();
+    }
+
+    function reveal(){
+      if(stage!=='fed') return;
+      stage='revealed'; rounds++;
+      const isCorrect = guess===poison;
+      if(isCorrect) correct++;
+      const code=codeOf(poison,m);
+      [...bottleGrid.querySelectorAll('.bottle-btn')].forEach(b=>{
+        if(+b.dataset.i===poison){ b.style.outline='3px solid var(--c-infer)'; b.innerHTML=`☠️<span style="font-family:var(--mono);font-size:.62rem;color:var(--ink-faint);">${poison}</span>`; }
+      });
+      msgEl.innerHTML = guess<0
+        ? `☠️ The poisoned bottle was <b>${poison}</b>. (You didn't lock in a guess — click a bottle next time before revealing!)`
+        : isCorrect
+          ? `✅ Correct! Bottle <b>${poison}</b> was indeed poisoned.`
+          : `❌ Not quite — you guessed ${guess}, but it was bottle <b>${poison}</b>.`;
+      decodeBox.innerHTML=`Dead-mouse pattern (M${m}…M1): <b>${code}</b> in binary &nbsp;=&nbsp; <b>${poison}</b> in decimal`;
+      updateButtons(); updateStats();
+    }
+
+    function updateStats(){
+      stats.set([
+        {k:'bottles (N)',v:N},
+        {k:'mice needed',v:m,accent:1},
+        {k:'capacity 2^mice',v:Math.pow(2,m)},
+        {k:'rounds played',v:rounds},
+        {k:'correct guesses',v:rounds? `${correct}/${rounds}` : '—',accent:1},
+      ]);
+    }
+
+    function drawChart(){
+      const ch=chartCard.chart(); const maxM=10;
+      ch.setX(0,maxM).setY(0,maxM+0.5); ch.clear(); ch.grid();
+      ch.axisX(Array.from({length:maxM+1},(_,i)=>i), v=>Math.pow(2,v).toLocaleString());
+      ch.axisY(Array.from({length:maxM+1},(_,i)=>i).filter(v=>v%2===0), v=>v);
+      for(let mm=1; mm<=maxM; mm++){ ch.bars([{lo:mm-1,hi:mm,count:mm}], hexA(COL.classic,.55)); }
+      const x=Math.min(maxM,Math.log2(N));
+      ch.vline(x,COL.coral,2,[5,3]);
+      const ctx=ch.ctx; ctx.fillStyle=COL.coral; ctx.font='bold 10px "JetBrains Mono",monospace'; ctx.textAlign='center';
+      ctx.fillText(`N=${N}, mice=${m}`, ch.X(x), ch.py1-4);
+    }
+
+    host.appendChild(UI.note('<b>The classic version of this puzzle:</b> 1000 bottles of wine, exactly one poisoned. With only <b>10</b> mice, you can find it — because 2<sup>10</sup> = 1024 ≥ 1000. Each mouse is a "bit": it tastes every bottle whose index has a 1 in that bit position. Whichever mice die overnight, read their pattern as binary — that number IS the poisoned bottle.'));
+
+    setN(3);
+  }
+});
+
+
 /* --------------------- (4) CATALOG RENDERING ------------------------ */
 const DIFF_LABEL={intro:'Intro',inter:'Intermediate',adv:'Advanced'};
 const DIFF_CLASS={intro:'diff-intro',inter:'diff-inter',adv:'diff-adv'};
