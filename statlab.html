@@ -3167,16 +3167,16 @@ add({ id:'wasabi-chocolate', cat:'classic', tag:'game', title:'The Wasabi Chocol
     'Why does this trick only need ONE weighing no matter how many piles there are — unlike the binary mice problem, which needs more mice as N grows?',
     'What is the key difference between the information carried by a single scale reading versus a single mouse\'s alive/dead status?'
   ],
-  blurb:'One pile of chocolate out of many has secretly been laced with wasabi (every tampered piece is lighter than normal). Take a different number of pieces from each pile, weigh the whole sample ONCE, and the total weight alone reveals exactly which pile was tampered with.',
+  blurb:'One pile of chocolate out of many has secretly been laced with wasabi (every tampered piece weighs a bit more or less than normal). Take a different number of pieces from each pile, weigh the whole sample ONCE, and the total weight alone reveals exactly which pile was tampered with.',
   build(host){
     const PRESETS=[{n:5,label:'5 piles'},{n:10,label:'10 piles (classic)'},{n:15,label:'15 piles'},{n:20,label:'20 piles'}];
-    let N=10, W=100, D=10; // N piles; W grams per normal piece; D grams lighter per tampered piece
+    let N=10, W=100, D=10; // N piles; W grams per normal piece; D = signed weight difference per tampered piece (+ heavier, − lighter)
     let stage='idle'; // idle -> hidden -> weighed -> revealed
     let bad=-1, guess=-1;
     let rounds=0, correct=0;
 
     function expectedTotal(){ let s=0; for(let i=1;i<=N;i++) s+=i*W; return s; }
-    function actualTotal(){ let s=0; for(let i=1;i<=N;i++){ const w=(i===bad)?(W-D):W; s+=i*w; } return s; }
+    function actualTotal(){ let s=0; for(let i=1;i<=N;i++){ const w=(i===bad)?(W+D):W; s+=i*w; } return s; }
 
     // ---- DOM shell ----
     const presetRow=UI.buttons(PRESETS.map(p=>({label:p.label,onclick:()=>{ nSlider.set(p.n); setN(p.n); }})));
@@ -3184,7 +3184,7 @@ add({ id:'wasabi-chocolate', cat:'classic', tag:'game', title:'The Wasabi Chocol
     const wCtrl=document.createElement('div'); wCtrl.className='ctrl';
     wCtrl.innerHTML=`<label style="display:flex;align-items:center;gap:8px;">Weight per piece (g): <input type="number" id="wIn" value="100" min="1" style="width:80px;"></label>`;
     const dCtrl=document.createElement('div'); dCtrl.className='ctrl';
-    dCtrl.innerHTML=`<label style="display:flex;align-items:center;gap:8px;">Deficit per tampered piece (g): <input type="number" id="dIn" value="10" min="1" style="width:80px;"></label>`;
+    dCtrl.innerHTML=`<label style="display:flex;align-items:center;gap:8px;">Weight difference per tampered piece (g): <input type="number" id="dIn" value="10" step="1" style="width:80px;"> <span style="color:var(--ink-faint);font-size:.76rem;">(+ heavier, − lighter)</span></label>`;
     const actionBtns=UI.buttons([
       {label:'🌶️ Hide wasabi in a random pile',primary:true,onclick:hidePoison},
       {label:'⚖️ Weigh the sample',onclick:weighSample},
@@ -3213,7 +3213,8 @@ add({ id:'wasabi-chocolate', cat:'classic', tag:'game', title:'The Wasabi Chocol
     const wIn=wCtrl.querySelector('#wIn');
     const dIn=dCtrl.querySelector('#dIn');
     wIn.addEventListener('input',()=>{ W=Math.max(1,+wIn.value||100); resetRound(); });
-    dIn.addEventListener('input',()=>{ D=Math.max(1,+dIn.value||10); resetRound(); });
+    dIn.addEventListener('input',()=>{ const v=parseInt(dIn.value,10); if(isNaN(v)||v===0){ return; } D=v; resetRound(); });
+    dIn.addEventListener('change',()=>{ const v=parseInt(dIn.value,10); if(isNaN(v)||v===0){ dIn.value=D; } });
 
     function setN(v){ N=Math.round(v); resetRound(); drawChart(); }
 
@@ -3261,7 +3262,8 @@ add({ id:'wasabi-chocolate', cat:'classic', tag:'game', title:'The Wasabi Chocol
     function hidePoison(){
       bad=1+Math.floor(Math.random()*N); guess=-1; stage='hidden';
       renderPiles();
-      msgEl.innerHTML='🤫 One pile has been secretly laced with wasabi. Now click <b>⚖️ Weigh the sample</b> to take your one measurement.';
+      const dir = D>0 ? 'heavier' : 'lighter';
+      msgEl.innerHTML=`🤫 One pile has been secretly tampered with — every piece from it is <b>${Math.abs(D)} g ${dir}</b> than normal. Now click <b>⚖️ Weigh the sample</b> to take your one measurement.`;
       scaleBox.innerHTML=''; decodeBox.innerHTML=''; updateButtons();
     }
 
@@ -3280,7 +3282,7 @@ add({ id:'wasabi-chocolate', cat:'classic', tag:'game', title:'The Wasabi Chocol
       const isCorrect=guess===bad;
       if(isCorrect) correct++;
       const exp=expectedTotal(), act=actualTotal();
-      const deficit=exp-act;
+      const diff=act-exp; // signed: positive if tampered pile is heavier, negative if lighter
       [...pileGrid.querySelectorAll('.pile-btn')].forEach(b=>{
         if(+b.dataset.i===bad){
           b.style.borderColor=COL.coral; b.style.boxShadow=`0 0 0 3px ${hexA(COL.coral,.4)}`; b.style.background=hexA(COL.coral,.15);
@@ -3293,7 +3295,7 @@ add({ id:'wasabi-chocolate', cat:'classic', tag:'game', title:'The Wasabi Chocol
         : isCorrect
           ? `🎉 Correct! Pile <b>${bad}</b> was indeed contaminated.`
           : `❌ Not quite — you guessed ${guess}, but it was pile <b>${bad}</b>.`;
-      decodeBox.innerHTML=`Expected weight <b>${exp.toLocaleString()} g</b> &nbsp;−&nbsp; actual weight <b>${act.toLocaleString()} g</b> &nbsp;=&nbsp; deficit <b>${deficit} g</b> &nbsp;→&nbsp; deficit ÷ ${D} g/piece &nbsp;=&nbsp; <b>${bad}</b>`;
+      decodeBox.innerHTML=`Actual weight <b>${act.toLocaleString()} g</b> &nbsp;−&nbsp; expected weight <b>${exp.toLocaleString()} g</b> &nbsp;=&nbsp; difference <b>${diff>0?'+':''}${diff} g</b> &nbsp;→&nbsp; difference ÷ ${D} g/piece &nbsp;=&nbsp; <b>${bad}</b>`;
       updateButtons(); updateStats();
     }
 
@@ -3320,7 +3322,7 @@ add({ id:'wasabi-chocolate', cat:'classic', tag:'game', title:'The Wasabi Chocol
       ch.xlabel('N (number of piles)');
     }
 
-    host.appendChild(UI.note('<b>Why one weighing is enough:</b> take <i>i</i> pieces from pile <i>i</i>, so the sample has 1+2+&hellip;+N pieces total. If every piece were normal, the sample would weigh exactly W&nbsp;&times;&nbsp;N(N+1)/2 grams. Since exactly the <i>k</i> pieces taken from the tampered pile are each <i>D</i> grams light, the actual weight comes up short by exactly <i>k</i>&nbsp;&times;&nbsp;<i>D</i> grams &mdash; so <i>k</i> = (expected &minus; actual) &divide; D is recovered instantly from a <b>single continuous measurement</b>. Compare this with the binary mice problem: a scale reading can land on many different values in one shot, while a mouse can only report alive-or-dead. That is exactly why the mice need <i>more tests</i> as N grows, while this trick always needs exactly <b>one</b> weighing &mdash; the difference between a continuous measurement and a discrete (binary) one.'));
+    host.appendChild(UI.note('<b>Why one weighing is enough:</b> take <i>i</i> pieces from pile <i>i</i>, so the sample has 1+2+&hellip;+N pieces total. If every piece were normal, the sample would weigh exactly W&nbsp;&times;&nbsp;N(N+1)/2 grams. Let <i>D</i> be the (signed) weight difference of a tampered piece &mdash; positive if it is heavier, negative if it is lighter. Since exactly the <i>k</i> pieces taken from the tampered pile each differ by <i>D</i> grams, the actual weight is off by exactly <i>k</i>&nbsp;&times;&nbsp;<i>D</i> grams &mdash; so <i>k</i> = (actual &minus; expected) &divide; D is recovered instantly from a <b>single continuous measurement</b>, whether the tampering made the pile heavier or lighter. Compare this with the binary mice problem: a scale reading can land on many different values in one shot, while a mouse can only report alive-or-dead. That is exactly why the mice need <i>more tests</i> as N grows, while this trick always needs exactly <b>one</b> weighing &mdash; the difference between a continuous measurement and a discrete (binary) one.'));
 
     setN(10);
   }
