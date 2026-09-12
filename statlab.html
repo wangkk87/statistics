@@ -3153,71 +3153,176 @@ add({ id:'poison-wine', cat:'classic', tag:'game', title:'The Poisoned Wine Prob
       ch.xlabel('max bottles = 2^m − 1');
     }
 
-    // ---- Big-N calculator card: works for any N (1,000, 1,000,000, ...) without drawing anything ----
-    const calcCard=document.createElement('div'); calcCard.className='plot-card';
-    calcCard.innerHTML=`<div class="plot-title">🔢 Big-N Calculator — instant answers for any N, no bottle grid required</div>
-      <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:center;justify-content:center;padding:6px 0 10px;font-family:var(--mono);font-size:.8rem;">
-        <label>Bottles (N): <input type="number" id="calcN" min="2" value="1000" style="width:100px;padding:3px 6px;"></label>
-        <span id="calcMinfo" style="color:var(--ink-faint);"></span>
-        <label>Encoding:
-          <select id="calcScheme" style="padding:3px 6px;">
-            <option value="std">Standard (place-value binary) — what this app uses</option>
-            <option value="mine">Combination-order (group by subset size)</option>
-          </select>
-        </label>
-      </div>
-      <div style="display:flex;gap:24px;flex-wrap:wrap;justify-content:center;padding:8px 0;">
-        <div style="min-width:270px;">
-          <div style="font-size:.78rem;color:var(--ink-faint);margin-bottom:4px;">Bottle number &nbsp;→&nbsp; which mice get sick</div>
-          <input type="number" id="calcBottleIn" min="1" style="width:130px;padding:3px 6px;" placeholder="e.g. 542391">
-          <div id="calcBottleOut" style="font-family:var(--mono);font-size:.82rem;margin-top:8px;min-height:2.6em;"></div>
-        </div>
-        <div style="min-width:270px;">
-          <div style="font-size:.78rem;color:var(--ink-faint);margin-bottom:4px;">Sick mice (comma list, e.g. 2,5,9) &nbsp;→&nbsp; poisoned bottle</div>
-          <input type="text" id="calcMiceIn" style="width:170px;padding:3px 6px;" placeholder="e.g. 2,5,9">
-          <div id="calcMiceOut" style="font-family:var(--mono);font-size:.82rem;margin-top:8px;min-height:2.6em;"></div>
-        </div>
-      </div>`;
-    host.appendChild(calcCard);
-
-    const calcNIn=calcCard.querySelector('#calcN');
-    const calcMinfo=calcCard.querySelector('#calcMinfo');
-    const calcSchemeSel=calcCard.querySelector('#calcScheme');
-    const calcBottleIn=calcCard.querySelector('#calcBottleIn');
-    const calcBottleOut=calcCard.querySelector('#calcBottleOut');
-    const calcMiceIn=calcCard.querySelector('#calcMiceIn');
-    const calcMiceOut=calcCard.querySelector('#calcMiceOut');
-
-    function calcRefreshInfo(){
-      const cn=Math.max(2,Math.round(+calcNIn.value||1000));
-      const cm=miceNeeded(cn);
-      calcMinfo.innerHTML=`→ needs <b>${cm}</b> mice (2<sup>${cm}</sup> − 1 = ${capacity(cm).toLocaleString()} ≥ ${cn.toLocaleString()})`;
-      return {cn,cm};
-    }
-    function calcUpdateBottle(){
-      const {cn,cm}=calcRefreshInfo();
-      const b=parseInt(calcBottleIn.value,10);
-      if(!b||b<1||b>cn){ calcBottleOut.innerHTML=`<span style="color:var(--ink-faint)">enter a bottle from 1–${cn.toLocaleString()}</span>`; return; }
-      const sch=calcSchemeSel.value;
-      const sick=sickListFor(b,cm,sch);
-      calcBottleOut.innerHTML=`sick mice: <b>${sick.map(j=>'M'+j).join(', ')||'none'}</b><br>pattern (M${cm}…M1) = <b>${codeStrFor(b,cm,sch)}</b>`;
-    }
-    function calcUpdateMice(){
-      const {cn,cm}=calcRefreshInfo();
-      const nums=[...new Set(calcMiceIn.value.split(',').map(s=>parseInt(s.trim(),10)).filter(x=>!isNaN(x)&&x>=1&&x<=cm))].sort((a,b)=>a-b);
-      if(nums.length===0){ calcMiceOut.innerHTML=`<span style="color:var(--ink-faint)">enter sick mouse numbers, e.g. 2,5,9 (1–${cm})</span>`; return; }
-      const sch=calcSchemeSel.value;
-      const bottle=bottleFor(nums,cm,sch);
-      calcMiceOut.innerHTML=`poisoned bottle = <b>${bottle.toLocaleString()}</b><br>pattern (M${cm}…M1) = <b>${codeStrFor(bottle,cm,sch)}</b>`;
-    }
-    [calcNIn,calcSchemeSel].forEach(el=>el.addEventListener('input',()=>{ calcUpdateBottle(); calcUpdateMice(); }));
-    calcBottleIn.addEventListener('input',calcUpdateBottle);
-    calcMiceIn.addEventListener('input',calcUpdateMice);
-    calcRefreshInfo(); calcUpdateBottle(); calcUpdateMice();
-
     host.appendChild(UI.note('<b>How the "drinking lists" work:</b> number the bottles 1, 2, 3, … and write each number in binary. Mouse M1 drinks every bottle whose <em>last</em> binary digit is 1, M2 every bottle whose <em>second-to-last</em> digit is 1, and so on. With 2 mice and 3 bottles: M1 drinks (1,&nbsp;0,&nbsp;1) and M2 drinks (0,&nbsp;1,&nbsp;1). Because the all-zero code (no mouse drinks) is never assigned to a bottle, <b>m mice can distinguish 2<sup>m</sup> − 1 bottles</b>: 2 mice → 3, 3 mice → 7, 10 mice → 1023. That is why the classic riddle — <b>1000 bottles, one poisoned</b> — needs only <b>10</b> mice. <b>Prefer to group bottles by how many mice taste them (1 mouse, then 2, then 3, …) instead?</b> Switch the "Encoding scheme" dropdown above to try that "combination-order" scheme — it is a perfectly valid alternative, but decoding it means ranking combinations with binomial coefficients instead of just reading off binary digits, which is why the place-value scheme is the one everyone actually uses once N gets large.'));
 
     setN(3);
+  }
+});
+
+
+/* ===== Classics : The Wasabi Chocolate Problem ===== */
+add({ id:'wasabi-chocolate', cat:'classic', tag:'game', title:'The Wasabi Chocolate Problem — One-Weigh Detective', diff:'inter',
+  questions:[
+    'Why does taking a DIFFERENT number of pieces from each pile matter? What would go wrong if you took the same number of pieces from every pile?',
+    'Why does this trick only need ONE weighing no matter how many piles there are — unlike the binary mice problem, which needs more mice as N grows?',
+    'What is the key difference between the information carried by a single scale reading versus a single mouse\'s alive/dead status?'
+  ],
+  blurb:'One pile of chocolate out of many has secretly been laced with wasabi (every tampered piece is lighter than normal). Take a different number of pieces from each pile, weigh the whole sample ONCE, and the total weight alone reveals exactly which pile was tampered with.',
+  build(host){
+    const PRESETS=[{n:5,label:'5 piles'},{n:10,label:'10 piles (classic)'},{n:15,label:'15 piles'},{n:20,label:'20 piles'}];
+    let N=10, W=100, D=10; // N piles; W grams per normal piece; D grams lighter per tampered piece
+    let stage='idle'; // idle -> hidden -> weighed -> revealed
+    let bad=-1, guess=-1;
+    let rounds=0, correct=0;
+
+    function expectedTotal(){ let s=0; for(let i=1;i<=N;i++) s+=i*W; return s; }
+    function actualTotal(){ let s=0; for(let i=1;i<=N;i++){ const w=(i===bad)?(W-D):W; s+=i*w; } return s; }
+
+    // ---- DOM shell ----
+    const presetRow=UI.buttons(PRESETS.map(p=>({label:p.label,onclick:()=>{ nSlider.set(p.n); setN(p.n); }})));
+    const nSlider=UI.slider({label:'Number of piles (N)',min:2,max:30,value:10,fmt:v=>v,oninput:(v)=>setN(v)});
+    const wCtrl=document.createElement('div'); wCtrl.className='ctrl';
+    wCtrl.innerHTML=`<label style="display:flex;align-items:center;gap:8px;">Weight per piece (g): <input type="number" id="wIn" value="100" min="1" style="width:80px;"></label>`;
+    const dCtrl=document.createElement('div'); dCtrl.className='ctrl';
+    dCtrl.innerHTML=`<label style="display:flex;align-items:center;gap:8px;">Deficit per tampered piece (g): <input type="number" id="dIn" value="10" min="1" style="width:80px;"></label>`;
+    const actionBtns=UI.buttons([
+      {label:'🌶️ Hide wasabi in a random pile',primary:true,onclick:hidePoison},
+      {label:'⚖️ Weigh the sample',onclick:weighSample},
+      {label:'👁 Reveal contaminated pile',onclick:reveal},
+    ]);
+    const stats=UI.statsBox();
+
+    const pileCard=document.createElement('div'); pileCard.className='plot-card';
+    pileCard.innerHTML=`<div class="plot-title">Chocolate piles — click one to guess</div>
+      <div id="msg" style="text-align:center;font-family:var(--mono);font-size:.84rem;color:var(--ink);min-height:2.2em;padding:4px 0 8px;"></div>
+      <div id="scaleBox" style="text-align:center;font-family:var(--mono);font-size:.95rem;min-height:1.6em;padding-bottom:6px;font-weight:600;"></div>
+      <div id="decodeBox" style="text-align:center;font-family:var(--mono);font-size:.8rem;min-height:1.4em;padding-bottom:6px;"></div>
+      <div id="pileGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:8px;max-height:340px;overflow-y:auto;padding:6px;"></div>`;
+
+    const chartCard=UI.plotCard('Weighings needed vs. number of piles — always flat at 1, no matter how large N gets',220);
+
+    host.appendChild(UI.appGrid(
+      [presetRow,nSlider,wCtrl,dCtrl,actionBtns,stats],
+      [pileCard,chartCard]
+    ));
+
+    const pileGrid=pileCard.querySelector('#pileGrid');
+    const msgEl=pileCard.querySelector('#msg');
+    const scaleBox=pileCard.querySelector('#scaleBox');
+    const decodeBox=pileCard.querySelector('#decodeBox');
+    const wIn=wCtrl.querySelector('#wIn');
+    const dIn=dCtrl.querySelector('#dIn');
+    wIn.addEventListener('input',()=>{ W=Math.max(1,+wIn.value||100); resetRound(); });
+    dIn.addEventListener('input',()=>{ D=Math.max(1,+dIn.value||10); resetRound(); });
+
+    function setN(v){ N=Math.round(v); resetRound(); drawChart(); }
+
+    function resetRound(){ stage='idle'; bad=-1; guess=-1; renderPiles(); updateButtons();
+      msgEl.innerHTML=`Ready — <b>${N}</b> piles. Take <i>i</i> pieces from pile <i>i</i>. One weighing will reveal the tampered pile. Start by hiding the wasabi.`;
+      scaleBox.innerHTML=''; decodeBox.innerHTML=''; updateStats(); }
+
+    function renderPiles(){
+      pileGrid.innerHTML='';
+      for(let i=1;i<=N;i++){
+        const b=document.createElement('button'); b.className='abtn pile-btn'; b.dataset.i=i;
+        b.title=`Pile ${i} — take ${i} piece${i===1?'':'s'} from this pile`;
+        b.style.cssText='padding:6px 2px;font-size:.85rem;line-height:1.1;display:flex;flex-direction:column;align-items:center;gap:2px;transition:.12s;';
+        b.innerHTML=`🍫<span style="font-family:var(--mono);font-size:.62rem;color:var(--ink-faint);">${i}</span><span style="font-family:var(--mono);font-size:.55rem;color:var(--ink-faint);">take ${i}</span>`;
+        b.onclick=()=>onPileClick(i);
+        pileGrid.appendChild(b);
+      }
+    }
+
+    function highlightGuess(){
+      [...pileGrid.querySelectorAll('.pile-btn')].forEach(b=>{
+        const isG=(+b.dataset.i===guess);
+        b.style.background = isG ? hexA(COL.classic,.22) : '';
+        b.style.borderColor = isG ? COL.classic : '';
+        b.style.boxShadow = isG ? `0 0 0 3px ${hexA(COL.classic,.35)}` : '';
+        b.style.transform = isG ? 'scale(1.08)' : '';
+      });
+    }
+
+    function onPileClick(i){
+      if(stage==='idle'){ msgEl.innerHTML=`⚠️ First click <b>🌶️ Hide wasabi</b> to start a round.`; return; }
+      if(stage==='hidden'){ msgEl.innerHTML=`⚠️ Weigh the sample first! You need the total weight before you can deduce the pile.`; return; }
+      if(stage==='revealed'){ msgEl.innerHTML=`This round is over — click <b>🌶️ Hide wasabi</b> to play again.`; return; }
+      guess=i; highlightGuess();
+      msgEl.innerHTML=`✅ Your guess: pile <b>${guess}</b>. Click <b>👁 Reveal</b> to check.`;
+    }
+
+    function updateButtons(){
+      const btns=actionBtns.querySelectorAll('button');
+      btns[0].disabled=false;
+      btns[1].disabled = stage!=='hidden';
+      btns[2].disabled = stage!=='weighed';
+    }
+
+    function hidePoison(){
+      bad=1+Math.floor(Math.random()*N); guess=-1; stage='hidden';
+      renderPiles();
+      msgEl.innerHTML='🤫 One pile has been secretly laced with wasabi. Now click <b>⚖️ Weigh the sample</b> to take your one measurement.';
+      scaleBox.innerHTML=''; decodeBox.innerHTML=''; updateButtons();
+    }
+
+    function weighSample(){
+      if(stage!=='hidden') return;
+      const act=actualTotal();
+      stage='weighed';
+      scaleBox.innerHTML=`⚖️ The sample (1+2+…+${N} = ${N*(N+1)/2} pieces) weighs <b style="color:${COL.coral}">${act.toLocaleString()} g</b>`;
+      msgEl.innerHTML='🔍 That single number is all you get! Do the arithmetic, then <b>click the pile</b> you think is contaminated.';
+      updateButtons();
+    }
+
+    function reveal(){
+      if(stage!=='weighed') return;
+      stage='revealed'; rounds++;
+      const isCorrect=guess===bad;
+      if(isCorrect) correct++;
+      const exp=expectedTotal(), act=actualTotal();
+      const deficit=exp-act;
+      [...pileGrid.querySelectorAll('.pile-btn')].forEach(b=>{
+        if(+b.dataset.i===bad){
+          b.style.borderColor=COL.coral; b.style.boxShadow=`0 0 0 3px ${hexA(COL.coral,.4)}`; b.style.background=hexA(COL.coral,.15);
+          b.innerHTML=`🌶️<span style="font-family:var(--mono);font-size:.62rem;color:var(--ink-faint);">${bad}</span>`;
+          b.scrollIntoView({block:'nearest'});
+        }
+      });
+      msgEl.innerHTML = guess<0
+        ? `🌶️ The contaminated pile was <b>${bad}</b>. (You didn't lock in a guess — click a pile next time before revealing!)`
+        : isCorrect
+          ? `🎉 Correct! Pile <b>${bad}</b> was indeed contaminated.`
+          : `❌ Not quite — you guessed ${guess}, but it was pile <b>${bad}</b>.`;
+      decodeBox.innerHTML=`Expected weight <b>${exp.toLocaleString()} g</b> &nbsp;−&nbsp; actual weight <b>${act.toLocaleString()} g</b> &nbsp;=&nbsp; deficit <b>${deficit} g</b> &nbsp;→&nbsp; deficit ÷ ${D} g/piece &nbsp;=&nbsp; <b>${bad}</b>`;
+      updateButtons(); updateStats();
+    }
+
+    function updateStats(){
+      stats.set([
+        {k:'piles (N)',v:N},
+        {k:'pieces sampled',v:N*(N+1)/2,accent:1},
+        {k:'weighings needed',v:1,accent:1},
+        {k:'rounds played',v:rounds},
+        {k:'correct guesses',v:rounds? `${correct}/${rounds}` : '—',accent:1},
+      ]);
+    }
+
+    function drawChart(){
+      const ch=chartCard.chart(); const maxN=30;
+      ch.setX(0,maxN).setY(0,3); ch.clear(); ch.grid();
+      ch.axisX(Array.from({length:7},(_,i)=>i*5), v=>v);
+      ch.axisY([0,1,2,3], v=>v);
+      ch.bars([{lo:0,hi:maxN,count:1}], hexA(COL.classic,.55));
+      const x=Math.min(maxN,N);
+      ch.vline(x,COL.coral,2,[5,3]);
+      const ctx=ch.ctx; ctx.fillStyle=COL.coral; ctx.font='bold 10px "JetBrains Mono",monospace'; ctx.textAlign='center';
+      ctx.fillText(`N=${N}: still just 1 weighing`, ch.X(x), ch.py1-4);
+      ch.xlabel('N (number of piles)');
+    }
+
+    host.appendChild(UI.note('<b>Why one weighing is enough:</b> take <i>i</i> pieces from pile <i>i</i>, so the sample has 1+2+&hellip;+N pieces total. If every piece were normal, the sample would weigh exactly W&nbsp;&times;&nbsp;N(N+1)/2 grams. Since exactly the <i>k</i> pieces taken from the tampered pile are each <i>D</i> grams light, the actual weight comes up short by exactly <i>k</i>&nbsp;&times;&nbsp;<i>D</i> grams &mdash; so <i>k</i> = (expected &minus; actual) &divide; D is recovered instantly from a <b>single continuous measurement</b>. Compare this with the binary mice problem: a scale reading can land on many different values in one shot, while a mouse can only report alive-or-dead. That is exactly why the mice need <i>more tests</i> as N grows, while this trick always needs exactly <b>one</b> weighing &mdash; the difference between a continuous measurement and a discrete (binary) one.'));
+
+    setN(10);
   }
 });
 
