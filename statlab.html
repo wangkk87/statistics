@@ -2858,6 +2858,7 @@ add({ id:'poison-wine', cat:'classic', tag:'game', title:'The Poisoned Wine Prob
   build(host){
     const PRESETS=[{n:3,label:'3 bottles'},{n:6,label:'6 bottles'},{n:7,label:'7 bottles'},{n:15,label:'15 bottles'},{n:63,label:'63 bottles'},{n:1000,label:'1000 bottles (the classic riddle!)'}];
     let N=3, m=miceNeeded(N);
+    let scheme='std';  // 'std' = standard place-value binary · 'mine' = combination-order (group by subset size)
     let stage='idle'; // idle -> hidden -> fed -> revealed
     let poison=-1, guess=-1;   // bottle numbers are 1-indexed (1..N); code 00…0 is never used
     let rounds=0, correct=0;
@@ -2865,8 +2866,58 @@ add({ id:'poison-wine', cat:'classic', tag:'game', title:'The Poisoned Wine Prob
     // smallest m with 2^m - 1 >= n
     function miceNeeded(n){ return n<=0?0:Math.ceil(Math.log2(n+1)); }
     function capacity(mm){ return Math.pow(2,mm)-1; }
-    function codeOf(i,mm){ return i.toString(2).padStart(mm,'0'); }          // MSB … LSB
-    function mouseDrinks(j,i){ return ((i>>j)&1)===1; }                        // mouse j (0-based, M1 = bit 0 = LSB) drinks bottle i?
+
+    // ---- Two interchangeable encodings ----
+    // Scheme "std" = place-value binary: mouse j (0-based, M(j+1)) drinks bottle i iff bit j of i is 1.
+    //   Reading sick mice back as binary digits gives the bottle number directly — no extra math.
+    // Scheme "mine" = combination-order: bottles are numbered by listing ALL nonempty subsets of
+    //   {M1..Mm}, smallest subsets first, ties broken lexicographically. This is a perfectly valid
+    //   alternative bijection, but decoding it needs combinatorial ranking (binomial coefficients)
+    //   instead of a direct binary read — which is exactly why the standard scheme is what everyone
+    //   actually uses once N gets large.
+    function nCr(n,r){ if(r<0||r>n) return 0; r=Math.min(r,n-r); let res=1; for(let i=0;i<r;i++){ res=res*(n-i)/(i+1); } return Math.round(res); }
+    function comboAtIndex(n,k,idx){ // 0-based idx -> the idx-th lexicographic k-subset of {1..n}
+      const result=[]; let start=1, x=idx;
+      for(let i=0;i<k;i++){
+        let c=nCr(n-start,k-i-1);
+        while(x>=c){ x-=c; start++; c=nCr(n-start,k-i-1); }
+        result.push(start); start++;
+      }
+      return result;
+    }
+    function comboRank(n,k,subsetAsc){ // inverse of comboAtIndex -> 0-based rank
+      let rank=0, prev=0;
+      for(let i=0;i<k;i++){ for(let v=prev+1; v<subsetAsc[i]; v++) rank+=nCr(n-v,k-i-1); prev=subsetAsc[i]; }
+      return rank;
+    }
+    function myEncode(bottle,mm){ // bottle (1-indexed) -> sorted array of sick mice (1-indexed)
+      let cum=0;
+      for(let k=1;k<=mm;k++){ const c=nCr(mm,k); if(bottle<=cum+c) return comboAtIndex(mm,k,bottle-cum-1); cum+=c; }
+      return [];
+    }
+    function myDecode(sickAsc,mm){ // sorted ascending sick-mice array -> bottle number
+      const k=sickAsc.length; let cum=0; for(let i=1;i<k;i++) cum+=nCr(mm,i);
+      return cum+comboRank(mm,k,sickAsc)+1;
+    }
+    function stdEncode(bottle,mm){ // bottle -> sorted array of sick mice, via place-value binary
+      const sick=[]; for(let j=0;j<mm;j++){ if(Math.floor(bottle/Math.pow(2,j))%2===1) sick.push(j+1); } return sick;
+    }
+    function stdDecode(sickArr,mm){ // sick mice (any order) -> bottle number
+      let bottle=0; sickArr.forEach(j=>{ bottle+=Math.pow(2,j-1); }); return bottle;
+    }
+    // Scheme-aware dispatchers (take an explicit scheme so the game and the calculator can each
+    // pick their own encoding independently):
+    function sickListFor(i,mm,sch){ return sch==='std' ? stdEncode(i,mm) : myEncode(i,mm); }
+    function bottleFor(sickArr,mm,sch){ return sch==='std' ? stdDecode(sickArr,mm) : myDecode(sickArr,mm); }
+    function codeStrFor(i,mm,sch){ // left-to-right string = M(mm) … M1 (matches the mice row on screen)
+      const sick=sickListFor(i,mm,sch); let s='';
+      for(let mouseNum=mm; mouseNum>=1; mouseNum--) s+= sick.includes(mouseNum) ? '1' : '0';
+      return s;
+    }
+
+    // ---- Main-game helpers (always use the module's own N/m/scheme) ----
+    function codeOf(i,mm){ return codeStrFor(i,mm,scheme); }
+    function mouseDrinks(j,i){ return sickListFor(i,m,scheme).includes(j+1); }   // mouse j (0-based) drinks bottle i?
     function mouseVector(j){ const v=[]; for(let i=1;i<=N;i++) v.push(mouseDrinks(j,i)?1:0); return v; }
 
     function mouseSVG(state){ // state: 'alive' | 'dead'
@@ -2896,6 +2947,13 @@ add({ id:'poison-wine', cat:'classic', tag:'game', title:'The Poisoned Wine Prob
     // ---- DOM shell ----
     const presetRow=UI.buttons(PRESETS.map(p=>({label:p.label,onclick:()=>{ nSlider.set(p.n); setN(p.n); }})));
     const nSlider=UI.slider({label:'Number of wine bottles (N)',min:2,max:1023,value:3,fmt:v=>v,oninput:(v)=>setN(v)});
+    const schemeCtrl=document.createElement('div'); schemeCtrl.className='ctrl';
+    schemeCtrl.innerHTML=`<label style="display:flex;align-items:center;gap:8px;">Encoding scheme:
+      <select id="schemeSelect" style="padding:3px 6px;">
+        <option value="std">Standard (place-value binary)</option>
+        <option value="mine">Combination order (group by size)</option>
+      </select>
+    </label>`;
     const showCodes=document.createElement('div'); showCodes.className='ctrl';
     showCodes.innerHTML=`<label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" id="codeToggle" style="width:auto;"> Show drinking lists (cheat-sheet)</label>`;
     const actionBtns=UI.buttons([
@@ -2906,8 +2964,9 @@ add({ id:'poison-wine', cat:'classic', tag:'game', title:'The Poisoned Wine Prob
     const stats=UI.statsBox();
 
     const miceCard=document.createElement('div'); miceCard.className='plot-card';
-    miceCard.innerHTML=`<div class="plot-title">Mice on duty</div>
+    miceCard.innerHTML=`<div class="plot-title">Mice on duty &nbsp;<span style="font-weight:400;color:var(--ink-faint);">(left = M<span id="mLabelHi"></span> … right = M1, matching the binary reading direction)</span></div>
       <div id="miceRow" style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;padding:10px 0;"></div>
+      <div id="binConvBox" style="margin:6px 0 4px;padding-top:10px;border-top:1px dashed var(--line);text-align:center;font-family:var(--mono);font-size:.78rem;"></div>
       <div id="vecBox" style="font-family:var(--mono);font-size:.74rem;line-height:1.8;color:var(--ink-soft);text-align:center;"></div>`;
 
     const bottleCard=document.createElement('div'); bottleCard.className='plot-card';
@@ -2919,26 +2978,38 @@ add({ id:'poison-wine', cat:'classic', tag:'game', title:'The Poisoned Wine Prob
     const chartCard=UI.plotCard('Mice needed vs. bottles — each extra mouse (roughly) DOUBLES the bottles you can test',220);
 
     host.appendChild(UI.appGrid(
-      [presetRow,nSlider,showCodes,actionBtns,stats],
+      [presetRow,nSlider,schemeCtrl,showCodes,actionBtns,stats],
       [miceCard,bottleCard,chartCard]
     ));
 
     const miceRow=miceCard.querySelector('#miceRow');
     const vecBox=miceCard.querySelector('#vecBox');
+    const binConvBox=miceCard.querySelector('#binConvBox');
+    const mLabelHi=miceCard.querySelector('#mLabelHi');
     const bottleGrid=bottleCard.querySelector('#bottleGrid');
     const msgEl=bottleCard.querySelector('#msg');
     const decodeBox=bottleCard.querySelector('#decodeBox');
     const codeToggle=showCodes.querySelector('#codeToggle');
+    const schemeSelect=schemeCtrl.querySelector('#schemeSelect');
     codeToggle.addEventListener('change',()=>{ renderBottles(); renderVectors(); });
+    schemeSelect.addEventListener('change',()=>setScheme(schemeSelect.value));
 
     function setN(v){ N=Math.round(v); m=miceNeeded(N); stage='idle'; poison=-1; guess=-1;
-      renderMice(); renderVectors(); renderBottles(); updateButtons(); drawChart();
+      renderMice(); renderVectors(); renderBottles(); renderBinConv(); updateButtons(); drawChart();
       msgEl.innerHTML=`Ready — <b>${m}</b> mice can identify any one of <b>${N}</b> bottles (2<sup>${m}</sup> − 1 = ${capacity(m)} ≥ ${N}). Start by hiding the poison.`;
+      decodeBox.innerHTML=''; updateStats(); }
+
+    function setScheme(v){ scheme=v; stage='idle'; poison=-1; guess=-1;
+      renderMice(); renderVectors(); renderBottles(); renderBinConv(); updateButtons();
+      msgEl.innerHTML = v==='std'
+        ? `Switched to <b>standard binary</b>: read sick mice as bits, left (M${m}) to right (M1), and that IS the bottle number.`
+        : `Switched to <b>combination order</b>: bottles are grouped by how many mice are sick (1 sick mouse first, then 2, then 3, …). Decoding needs combinatorial ranking — try the calculator below to see it worked out.`;
       decodeBox.innerHTML=''; updateStats(); }
 
     function renderMice(){
       miceRow.innerHTML='';
-      for(let j=0;j<m;j++){
+      mLabelHi.textContent=m;
+      for(let j=m-1;j>=0;j--){ // left-to-right on screen = M(m) … M1, matching the binary read direction
         const wrap=document.createElement('div'); wrap.style.cssText='text-align:center;font-family:var(--mono);font-size:.68rem;color:var(--ink-faint);';
         wrap.innerHTML=`<div class="mouse-icon" data-j="${j}">${mouseSVG('alive')}</div>M${j+1}`;
         miceRow.appendChild(wrap);
@@ -2948,11 +3019,32 @@ add({ id:'poison-wine', cat:'classic', tag:'game', title:'The Poisoned Wine Prob
     // "drinking list" per mouse: which bottles (1..N) it tastes, as a 0/1 vector
     function renderVectors(){
       if(!codeToggle.checked){ vecBox.innerHTML=''; return; }
-      if(N>16){ vecBox.innerHTML=`<span style="color:var(--ink-faint)">Drinking-list vectors are shown for N ≤ 16 — for larger N, read each bottle's binary label instead.</span>`; return; }
+      if(N>16){ vecBox.innerHTML=`<span style="color:var(--ink-faint)">Drinking-list vectors are shown for N ≤ 16 — for larger N, read each bottle's code label instead.</span>`; return; }
       const header=`<div style="color:var(--ink-faint)">bottle&nbsp;&nbsp;${Array.from({length:N},(_,i)=>String(i+1).padStart(2,' ')).join(' ')}</div>`;
       const rows=[];
-      for(let j=0;j<m;j++){ const v=mouseVector(j); rows.push(`<div><b>M${j+1}</b> drinks&nbsp;( ${v.map(x=>x?'<b style="color:var(--c-classic)">1</b>':'0').join(', ')} )</div>`); }
+      for(let j=m-1;j>=0;j--){ const v=mouseVector(j); rows.push(`<div><b>M${j+1}</b> drinks&nbsp;( ${v.map(x=>x?'<b style="color:var(--c-classic)">1</b>':'0').join(', ')} )</div>`); }
       vecBox.innerHTML=header+rows.join('');
+    }
+
+    // ---- Quick "Binary Converter": type a pattern next to the mice, get the bottle instantly ----
+    function renderBinConv(){
+      binConvBox.innerHTML=`<div style="color:var(--ink-faint);margin-bottom:4px;">Type a pattern (left = M${m} … right = M1):</div>
+        <input type="text" id="binConvIn" maxlength="${m}" style="width:${Math.max(70,m*16)}px;text-align:center;letter-spacing:3px;font-family:var(--mono);padding:3px 4px;" placeholder="${'0'.repeat(m)}">
+        <button class="abtn" id="binConvBtn" style="margin-left:6px;">Binary Converter</button>
+        <div id="binConvOut" style="margin-top:6px;min-height:1.4em;"></div>`;
+      const binConvIn=binConvBox.querySelector('#binConvIn');
+      const binConvOut=binConvBox.querySelector('#binConvOut');
+      function doConvert(){
+        const val=binConvIn.value.trim();
+        if(!/^[01]+$/.test(val) || val.length!==m){ binConvOut.innerHTML=`<span style="color:var(--ink-faint)">enter exactly ${m} digits of 0/1</span>`; return; }
+        const sick=[]; for(let idx=0; idx<m; idx++){ if(val[idx]==='1') sick.push(m-idx); } sick.sort((a,b)=>a-b);
+        const bottle=bottleFor(sick,m,scheme);
+        if(bottle<1||bottle>N){ binConvOut.innerHTML=`<span style="color:${COL.coral}">= bottle ${bottle} — outside current range (N=${N})</span>`; return; }
+        const note = scheme==='std' ? '' : ` <span style="color:var(--ink-faint)">(combinatorial rank — not a literal binary read)</span>`;
+        binConvOut.innerHTML=`= <b style="color:var(--c-classic)">bottle ${bottle}</b>${note}`;
+      }
+      binConvBox.querySelector('#binConvBtn').addEventListener('click',doConvert);
+      binConvIn.addEventListener('keydown',e=>{ if(e.key==='Enter') doConvert(); });
     }
 
     function renderBottles(){
@@ -3002,11 +3094,14 @@ add({ id:'poison-wine', cat:'classic', tag:'game', title:'The Poisoned Wine Prob
 
     function feedMice(){
       if(stage!=='hidden') return;
-      [...miceRow.querySelectorAll('.mouse-icon')].forEach((el,j)=>{
-        setTimeout(()=>{ if(mouseDrinks(j,poison)){ el.innerHTML=mouseSVG('dead'); } },j*120);
+      [...miceRow.querySelectorAll('.mouse-icon')].forEach((el,pos)=>{
+        const j=+el.dataset.j;
+        setTimeout(()=>{ if(mouseDrinks(j,poison)){ el.innerHTML=mouseSVG('dead'); } },pos*120);
       });
       stage='fed';
-      msgEl.innerHTML='🔍 Results are in! Read the sick mice as binary (M1 = rightmost digit), then <b>click the bottle</b> you think is poisoned.';
+      msgEl.innerHTML = scheme==='std'
+        ? '🔍 Results are in! Read the sick mice as binary — left (M'+m+') to right (M1) — then <b>click the bottle</b> you think is poisoned.'
+        : '🔍 Results are in! Count how many mice are sick and which ones, then <b>click the bottle</b> you think is poisoned.';
       updateButtons();
     }
 
@@ -3029,7 +3124,9 @@ add({ id:'poison-wine', cat:'classic', tag:'game', title:'The Poisoned Wine Prob
           ? `🎉 Correct! Bottle <b>${poison}</b> was indeed poisoned.`
           : `❌ Not quite — you guessed ${guess}, but it was bottle <b>${poison}</b>.`;
       const sick=Array.from({length:m},(_,j)=>mouseDrinks(j,poison)?'M'+(j+1):null).filter(Boolean).join(', ')||'none';
-      decodeBox.innerHTML=`Sick mice: <b>${sick}</b> &nbsp;→&nbsp; pattern (M${m}…M1) = <b>${code}</b> in binary &nbsp;=&nbsp; <b>${poison}</b> in decimal`;
+      decodeBox.innerHTML = scheme==='std'
+        ? `Sick mice: <b>${sick}</b> &nbsp;→&nbsp; pattern (M${m}…M1) = <b>${code}</b> in binary &nbsp;=&nbsp; <b>${poison}</b> in decimal`
+        : `Sick mice: <b>${sick}</b> &nbsp;→&nbsp; pattern (M${m}…M1) = <b>${code}</b> &nbsp;→&nbsp; combinatorial rank &nbsp;=&nbsp; <b>${poison}</b>`;
       updateButtons(); updateStats();
     }
 
@@ -3056,7 +3153,69 @@ add({ id:'poison-wine', cat:'classic', tag:'game', title:'The Poisoned Wine Prob
       ch.xlabel('max bottles = 2^m − 1');
     }
 
-    host.appendChild(UI.note('<b>How the "drinking lists" work:</b> number the bottles 1, 2, 3, … and write each number in binary. Mouse M1 drinks every bottle whose <em>last</em> binary digit is 1, M2 every bottle whose <em>second-to-last</em> digit is 1, and so on. With 2 mice and 3 bottles: M1 drinks (1,&nbsp;0,&nbsp;1) and M2 drinks (0,&nbsp;1,&nbsp;1). Because the all-zero code (no mouse drinks) is never assigned to a bottle, <b>m mice can distinguish 2<sup>m</sup> − 1 bottles</b>: 2 mice → 3, 3 mice → 7, 10 mice → 1023. That is why the classic riddle — <b>1000 bottles, one poisoned</b> — needs only <b>10</b> mice.'));
+    // ---- Big-N calculator card: works for any N (1,000, 1,000,000, ...) without drawing anything ----
+    const calcCard=document.createElement('div'); calcCard.className='plot-card';
+    calcCard.innerHTML=`<div class="plot-title">🔢 Big-N Calculator — instant answers for any N, no bottle grid required</div>
+      <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:center;justify-content:center;padding:6px 0 10px;font-family:var(--mono);font-size:.8rem;">
+        <label>Bottles (N): <input type="number" id="calcN" min="2" value="1000" style="width:100px;padding:3px 6px;"></label>
+        <span id="calcMinfo" style="color:var(--ink-faint);"></span>
+        <label>Encoding:
+          <select id="calcScheme" style="padding:3px 6px;">
+            <option value="std">Standard (place-value binary) — what this app uses</option>
+            <option value="mine">Combination-order (group by subset size)</option>
+          </select>
+        </label>
+      </div>
+      <div style="display:flex;gap:24px;flex-wrap:wrap;justify-content:center;padding:8px 0;">
+        <div style="min-width:270px;">
+          <div style="font-size:.78rem;color:var(--ink-faint);margin-bottom:4px;">Bottle number &nbsp;→&nbsp; which mice get sick</div>
+          <input type="number" id="calcBottleIn" min="1" style="width:130px;padding:3px 6px;" placeholder="e.g. 542391">
+          <div id="calcBottleOut" style="font-family:var(--mono);font-size:.82rem;margin-top:8px;min-height:2.6em;"></div>
+        </div>
+        <div style="min-width:270px;">
+          <div style="font-size:.78rem;color:var(--ink-faint);margin-bottom:4px;">Sick mice (comma list, e.g. 2,5,9) &nbsp;→&nbsp; poisoned bottle</div>
+          <input type="text" id="calcMiceIn" style="width:170px;padding:3px 6px;" placeholder="e.g. 2,5,9">
+          <div id="calcMiceOut" style="font-family:var(--mono);font-size:.82rem;margin-top:8px;min-height:2.6em;"></div>
+        </div>
+      </div>`;
+    host.appendChild(calcCard);
+
+    const calcNIn=calcCard.querySelector('#calcN');
+    const calcMinfo=calcCard.querySelector('#calcMinfo');
+    const calcSchemeSel=calcCard.querySelector('#calcScheme');
+    const calcBottleIn=calcCard.querySelector('#calcBottleIn');
+    const calcBottleOut=calcCard.querySelector('#calcBottleOut');
+    const calcMiceIn=calcCard.querySelector('#calcMiceIn');
+    const calcMiceOut=calcCard.querySelector('#calcMiceOut');
+
+    function calcRefreshInfo(){
+      const cn=Math.max(2,Math.round(+calcNIn.value||1000));
+      const cm=miceNeeded(cn);
+      calcMinfo.innerHTML=`→ needs <b>${cm}</b> mice (2<sup>${cm}</sup> − 1 = ${capacity(cm).toLocaleString()} ≥ ${cn.toLocaleString()})`;
+      return {cn,cm};
+    }
+    function calcUpdateBottle(){
+      const {cn,cm}=calcRefreshInfo();
+      const b=parseInt(calcBottleIn.value,10);
+      if(!b||b<1||b>cn){ calcBottleOut.innerHTML=`<span style="color:var(--ink-faint)">enter a bottle from 1–${cn.toLocaleString()}</span>`; return; }
+      const sch=calcSchemeSel.value;
+      const sick=sickListFor(b,cm,sch);
+      calcBottleOut.innerHTML=`sick mice: <b>${sick.map(j=>'M'+j).join(', ')||'none'}</b><br>pattern (M${cm}…M1) = <b>${codeStrFor(b,cm,sch)}</b>`;
+    }
+    function calcUpdateMice(){
+      const {cn,cm}=calcRefreshInfo();
+      const nums=[...new Set(calcMiceIn.value.split(',').map(s=>parseInt(s.trim(),10)).filter(x=>!isNaN(x)&&x>=1&&x<=cm))].sort((a,b)=>a-b);
+      if(nums.length===0){ calcMiceOut.innerHTML=`<span style="color:var(--ink-faint)">enter sick mouse numbers, e.g. 2,5,9 (1–${cm})</span>`; return; }
+      const sch=calcSchemeSel.value;
+      const bottle=bottleFor(nums,cm,sch);
+      calcMiceOut.innerHTML=`poisoned bottle = <b>${bottle.toLocaleString()}</b><br>pattern (M${cm}…M1) = <b>${codeStrFor(bottle,cm,sch)}</b>`;
+    }
+    [calcNIn,calcSchemeSel].forEach(el=>el.addEventListener('input',()=>{ calcUpdateBottle(); calcUpdateMice(); }));
+    calcBottleIn.addEventListener('input',calcUpdateBottle);
+    calcMiceIn.addEventListener('input',calcUpdateMice);
+    calcRefreshInfo(); calcUpdateBottle(); calcUpdateMice();
+
+    host.appendChild(UI.note('<b>How the "drinking lists" work:</b> number the bottles 1, 2, 3, … and write each number in binary. Mouse M1 drinks every bottle whose <em>last</em> binary digit is 1, M2 every bottle whose <em>second-to-last</em> digit is 1, and so on. With 2 mice and 3 bottles: M1 drinks (1,&nbsp;0,&nbsp;1) and M2 drinks (0,&nbsp;1,&nbsp;1). Because the all-zero code (no mouse drinks) is never assigned to a bottle, <b>m mice can distinguish 2<sup>m</sup> − 1 bottles</b>: 2 mice → 3, 3 mice → 7, 10 mice → 1023. That is why the classic riddle — <b>1000 bottles, one poisoned</b> — needs only <b>10</b> mice. <b>Prefer to group bottles by how many mice taste them (1 mouse, then 2, then 3, …) instead?</b> Switch the "Encoding scheme" dropdown above to try that "combination-order" scheme — it is a perfectly valid alternative, but decoding it means ranking combinations with binomial coefficients instead of just reading off binary digits, which is why the place-value scheme is the one everyone actually uses once N gets large.'));
 
     setN(3);
   }
