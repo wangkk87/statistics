@@ -1098,16 +1098,28 @@ add({ id:'normal-calc', cat:'prob', tag:'calculator', title:'Normal Probability 
     function syncInputs(){ aI.style.display = (mode==='gt')?'none':'flex'; bI.style.display=(mode==='lt')?'none':'flex';
       aI.querySelector('label').textContent = mode==='between'?'Lower bound (a)':'Cutoff (x)';
       bI.querySelector('label').textContent='Upper bound (b)'; if(mode==='gt') aI.querySelector('label').textContent='Cutoff (x)'; }
+    /* Axes use "nice" stepped scales (1-1.5-2-3-4-5-7.5-10 x 10^k) so that changing sigma visibly
+       makes the curve taller/shorter and wider/narrower instead of the view re-zooming every time. */
+    const STEPS=[1,1.5,2,3,4,5,7.5,10];
+    function niceScale(v){ const e=Math.floor(Math.log10(v)); const base=Math.pow(10,e); const m=v/base;
+      for(let i=0;i<STEPS.length;i++){ if(m<=STEPS[i]*(1+1e-9)){ const cur=STEPS[i]*base; const prev=i>0?STEPS[i-1]*base:STEPS[STEPS.length-2]*base/10; return {cur,prev}; } }
+      return {cur:10*base,prev:7.5*base}; }
     function draw(){ const mu=meanI.get(),sd=Math.max(1e-6,sdI.get()),a=aI.get(),b=bI.get();
-      const ch=plot.chart(); const lo=mu-4*sd,hi=mu+4*sd; const peak=M.normPdf(mu,mu,sd);
-      ch.setX(lo,hi).setY(0,peak*1.18); ch.clear(); ch.grid(); ch.axisX(niceTicks(lo,hi,7));
+      const ch=plot.chart();
+      const sc=niceScale(4*sd); const W=sc.cur, halfW=W*1.25, stepC=W/2;
+      const center=Math.round(mu/stepC)*stepC; const lo=center-halfW, hi=center+halfW;
+      const yTop=1.18*M.normPdf(0,0,sc.prev/4); /* tallest curve that still belongs to this scale step */
+      ch.setX(lo,hi).setY(0,yTop); ch.clear(); ch.grid(); ch.axisX(niceTicks(lo,hi,7));
       const pdf=x=>M.normPdf(x,mu,sd); let p=0,sa,sb;
       if(mode==='lt'){ sa=lo; sb=a; p=M.normCdf(a,mu,sd); }
       else if(mode==='gt'){ sa=a; sb=hi; p=1-M.normCdf(a,mu,sd); }
       else { sa=Math.min(a,b); sb=Math.max(a,b); p=M.normCdf(sb,mu,sd)-M.normCdf(sa,mu,sd); }
-      ch.shade(pdf,sa,sb,hexA(COL.prob,.3)); ch.curve(pdf,COL.prob,2.5);
-      if(mode!=='gt')ch.vline(mode==='lt'?a:Math.min(a,b),COL.ink,1.5,[4,3]);
-      if(mode!=='lt')ch.vline(mode==='gt'?a:Math.max(a,b),COL.ink,1.5,[4,3]);
+      const ca=Math.max(lo,Math.min(hi,sa)), cb=Math.max(lo,Math.min(hi,sb));
+      if(cb>ca) ch.shade(pdf,ca,cb,hexA(COL.prob,.3));
+      ch.curve(pdf,COL.prob,2.5);
+      const vl=x=>{ if(x>=lo&&x<=hi) ch.vline(x,COL.ink,1.5,[4,3]); };
+      if(mode!=='gt')vl(mode==='lt'?a:Math.min(a,b));
+      if(mode!=='lt')vl(mode==='gt'?a:Math.max(a,b));
       const za=(a-mu)/sd, zb=(b-mu)/sd;
       stats.set([{k:'probability',v:M.round(p,4),accent:1},{k:'percent',v:M.round(p*100,2)+'%',accent:1},{k:'z (lower)',v:M.round(za,3)},{k:'z (upper)',v:M.round(zb,3)}]);
     }
@@ -3389,7 +3401,7 @@ function renderCatalog(){
   document.getElementById('appletCount').textContent=APPLETS.length;
   Object.entries(CATS).forEach(([key,cat])=>{
     const items=APPLETS.filter(a=>a.cat===key); if(!items.length)return;
-    const a=document.createElement('a'); a.href='#'+key; a.textContent=cat.name; nav.appendChild(a);
+    const a=document.createElement('a'); a.href='#'+key; a.textContent=cat.name; a.addEventListener('click',()=>{ if(location.hash==='#'+key) setTimeout(route,0); }); nav.appendChild(a);
     const sec=document.createElement('section'); sec.className='section'; sec.id='sec-'+key; sec.style.setProperty('--cat',cat.color);
     const head=document.createElement('div'); head.className='sec-head';
     head.innerHTML=`<span class="num">${cat.n}</span><h2>${cat.name}</h2><span class="desc">${cat.desc}</span>`;
@@ -3506,7 +3518,19 @@ function openApplet(id){
   });
   window.scrollTo(0,0);
 }
-function route(){ const h=location.hash; if(h.startsWith('#/')) openApplet(decodeURIComponent(h.slice(2))); else showHome(); }
+function scrollToSection(key){
+  const el = key==='data' ? document.getElementById('catalog') : document.getElementById('sec-'+key);
+  if(!el) return false;
+  const top = el.getBoundingClientRect().top + window.pageYOffset - 70; /* 62px sticky topbar + gap */
+  window.scrollTo({top:Math.max(0,top),behavior:'smooth'}); return true;
+}
+function route(){ const h=location.hash;
+  if(h.startsWith('#/')){ openApplet(decodeURIComponent(h.slice(2))); return; }
+  const wasApplet = viewEl.style.display==='block';
+  showHome();
+  const key=h.slice(1);
+  if(key){ if(wasApplet){ requestAnimationFrame(()=>scrollToSection(key)); } else scrollToSection(key); }
+}
 window.addEventListener('hashchange',route);
 
 /* -------------------- (6) HERO ANIMATION ---------------------------- */
